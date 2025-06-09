@@ -400,6 +400,14 @@ export interface TraktWatchlistItem {
 	show?: TraktMedia;
 }
 
+// New interface for collection items
+export interface TraktCollectionItem {
+	last_collected_at: string;
+	last_updated_at: string;
+	movie?: TraktMedia;
+	show?: TraktMedia;
+}
+
 // New function to fetch watchlist movies
 export const getWatchlistMovies = async (accessToken: string): Promise<TraktWatchlistItem[]> => {
 	const endpoint = '/sync/watchlist/movies/added';
