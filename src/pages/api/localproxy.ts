@@ -97,8 +97,9 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 		// Handle Authorization header first and most importantly
 		const authHeader = req.headers.authorization || req.headers.Authorization;
 		if (authHeader) {
-			reqHeaders['Authorization'] = authHeader as string;
-			console.log(`Authorization header found: ${authHeader.substring(0, 20)}...`);
+			const authValue = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+			reqHeaders['Authorization'] = authValue;
+			console.log(`Authorization header found: ${authValue.substring(0, 20)}...`);
 		} else {
 			console.log('No Authorization header found in request');
 		}
