@@ -17,7 +17,7 @@ export class ScrapedService extends DatabaseClient {
 		const offset = page * 50;
 
 		try {
-			// First check if the key exists - using key field instead of id
+			// First check if the key exists
 			const recordExists = await this.prisma.scrapedTrue.findUnique({
 				where: { key },
 				select: { key: true },
@@ -27,43 +27,52 @@ export class ScrapedService extends DatabaseClient {
 				return undefined;
 			}
 
-			// Use COALESCE to handle empty result sets
-			let query = Prisma.sql`
-			SELECT
-				COALESCE(
-					JSON_ARRAYAGG(
-						JSON_OBJECT(
-							'hash', jt.hash,
-							'title', jt.title,
-							'fileSize', jt.fileSize
-						)
-					),
-					JSON_ARRAY()
-				) AS value
-			FROM (
-				SELECT
-					jt.hash,
-					jt.title,
-					jt.fileSize
-				FROM
-					ScrapedTrue s
-				JOIN
-					JSON_TABLE(
-						s.value,
-						'$[*]'
-						COLUMNS (
-							hash VARCHAR(255) PATH '$.hash',
-							title VARCHAR(255) PATH '$.title',
-							fileSize DECIMAL(10,2) PATH '$.fileSize'
-						)
-					) AS jt
-				WHERE
-					s.key = ${key}
-				${maxSizeMB ? Prisma.sql`AND jt.fileSize <= ${maxSizeMB}` : Prisma.empty}
-				ORDER BY jt.fileSize DESC
-				LIMIT 50
-				OFFSET ${offset}
-			) AS jt`;
+			// PostgreSQL-compatible JSON query
+			let query: any;
+			if (maxSizeMB) {
+				query = Prisma.sql`
+					SELECT 
+						COALESCE(
+							json_agg(
+								json_build_object(
+									'hash', (item->>'hash'),
+									'title', (item->>'title'),
+									'fileSize', (item->>'fileSize')::numeric
+								)
+								ORDER BY (item->>'fileSize')::numeric DESC
+							),
+							'[]'::json
+						) AS value
+					FROM (
+						SELECT jsonb_array_elements(s.value::jsonb) AS item
+						FROM "ScrapedTrue" s
+						WHERE s.key = ${key}
+						AND (jsonb_array_elements(s.value::jsonb)->>'fileSize')::numeric <= ${maxSizeMB}
+						LIMIT 50
+						OFFSET ${offset}
+					) AS items`;
+			} else {
+				query = Prisma.sql`
+					SELECT 
+						COALESCE(
+							json_agg(
+								json_build_object(
+									'hash', (item->>'hash'),
+									'title', (item->>'title'),
+									'fileSize', (item->>'fileSize')::numeric
+								)
+								ORDER BY (item->>'fileSize')::numeric DESC
+							),
+							'[]'::json
+						) AS value
+					FROM (
+						SELECT jsonb_array_elements(s.value::jsonb) AS item
+						FROM "ScrapedTrue" s
+						WHERE s.key = ${key}
+						LIMIT 50
+						OFFSET ${offset}
+					) AS items`;
+			}
 
 			const result = await this.prisma.$queryRaw<{ value: T }[]>(query);
 			return result.length > 0 ? result[0].value : undefined;
@@ -94,7 +103,7 @@ export class ScrapedService extends DatabaseClient {
 		const offset = page * 50;
 
 		try {
-			// First check if the key exists - using key field instead of id
+			// First check if the key exists
 			const recordExists = await this.prisma.scraped.findUnique({
 				where: { key },
 				select: { key: true },
@@ -104,43 +113,52 @@ export class ScrapedService extends DatabaseClient {
 				return undefined;
 			}
 
-			// Use COALESCE to handle empty result sets
-			let query = Prisma.sql`
-			SELECT
-				COALESCE(
-					JSON_ARRAYAGG(
-						JSON_OBJECT(
-							'hash', jt.hash,
-							'title', jt.title,
-							'fileSize', jt.fileSize
-						)
-					),
-					JSON_ARRAY()
-				) AS value
-			FROM (
-				SELECT
-					jt.hash,
-					jt.title,
-					jt.fileSize
-				FROM
-					Scraped s
-				JOIN
-					JSON_TABLE(
-						s.value,
-						'$[*]'
-						COLUMNS (
-							hash VARCHAR(255) PATH '$.hash',
-							title VARCHAR(255) PATH '$.title',
-							fileSize DECIMAL(10,2) PATH '$.fileSize'
-						)
-					) AS jt
-				WHERE
-					s.key = ${key}
-				${maxSizeMB ? Prisma.sql`AND jt.fileSize <= ${maxSizeMB}` : Prisma.empty}
-				ORDER BY jt.fileSize DESC
-				LIMIT 50
-				OFFSET ${offset}
-			) AS jt`;
+			// PostgreSQL-compatible JSON query
+			let query: any;
+			if (maxSizeMB) {
+				query = Prisma.sql`
+					SELECT 
+						COALESCE(
+							json_agg(
+								json_build_object(
+									'hash', (item->>'hash'),
+									'title', (item->>'title'),
+									'fileSize', (item->>'fileSize')::numeric
+								)
+								ORDER BY (item->>'fileSize')::numeric DESC
+							),
+							'[]'::json
+						) AS value
+					FROM (
+						SELECT jsonb_array_elements(s.value::jsonb) AS item
+						FROM "Scraped" s
+						WHERE s.key = ${key}
+						AND (jsonb_array_elements(s.value::jsonb)->>'fileSize')::numeric <= ${maxSizeMB}
+						LIMIT 50
+						OFFSET ${offset}
+					) AS items`;
+			} else {
+				query = Prisma.sql`
+					SELECT 
+						COALESCE(
+							json_agg(
+								json_build_object(
+									'hash', (item->>'hash'),
+									'title', (item->>'title'),
+									'fileSize', (item->>'fileSize')::numeric
+								)
+								ORDER BY (item->>'fileSize')::numeric DESC
+							),
+							'[]'::json
+						) AS value
+					FROM (
+						SELECT jsonb_array_elements(s.value::jsonb) AS item
+						FROM "Scraped" s
+						WHERE s.key = ${key}
+						LIMIT 50
+						OFFSET ${offset}
+					) AS items`;
+			}
 
 			const result = await this.prisma.$queryRaw<{ value: T }[]>(query);
 			return result.length > 0 ? result[0].value : undefined;
@@ -410,27 +428,27 @@ export class ScrapedService extends DatabaseClient {
 
 	public async getContentSize(): Promise<number> {
 		const result = await this.prisma.$queryRaw<[{ contentSize: number }]>`
-      SELECT count(*) as contentSize
-      FROM Scraped
-      WHERE Scraped.key LIKE 'movie:%' OR Scraped.key LIKE 'tv:%';
+      SELECT count(*) as "contentSize"
+      FROM "Scraped"
+      WHERE "Scraped"."key" LIKE 'movie:%' OR "Scraped"."key" LIKE 'tv:%';
     `;
 		return parseInt(result[0].contentSize.toString());
 	}
 
 	public async getProcessingCount(): Promise<number> {
 		const result = await this.prisma.$queryRaw<[{ processing: number }]>`
-      SELECT count(*) as processing
-      FROM Scraped
-      WHERE Scraped.key LIKE 'processing:%';
+      SELECT count(*) as "processing"
+      FROM "Scraped"
+      WHERE "Scraped"."key" LIKE 'processing:%';
     `;
 		return parseInt(result[0].processing.toString());
 	}
 
 	public async getRequestedCount(): Promise<number> {
 		const result = await this.prisma.$queryRaw<[{ requested: number }]>`
-      SELECT count(*) as requested
-      FROM Scraped
-      WHERE Scraped.key LIKE 'requested:%';
+      SELECT count(*) as "requested"
+      FROM "Scraped"
+      WHERE "Scraped"."key" LIKE 'requested:%';
     `;
 		return parseInt(result[0].requested.toString());
 	}
