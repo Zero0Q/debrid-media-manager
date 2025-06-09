@@ -1,6 +1,5 @@
 import { ScrapeSearchResult } from '@/services/mediasearch';
 import { filenameParse } from '@ctrl/video-filename-parser';
-import fs from 'fs';
 import ptt from 'parse-torrent-title';
 import { cleanSearchQuery, liteCleanSearchQuery } from './search';
 
@@ -12,28 +11,39 @@ export function isBrowser(): boolean {
 	return typeof window !== 'undefined';
 }
 
-let dictionary: Set<string>;
-try {
-	let data = fs.readFileSync('./wordlist.txt', 'utf8');
-	dictionary = new Set(data.toLowerCase().split('\n'));
-} catch (err) {
-	console.error('error loading wordlist', err);
-}
+// Create empty sets for client-side rendering
+let dictionary: Set<string> = new Set();
+let bannedWordSet: Set<string> = new Set();
+let bannedWordSet2: Array<string> = [];
 
-let bannedWordSet: Set<string>;
-try {
-	let data = fs.readFileSync('./bannedwordlist.txt', 'utf8');
-	bannedWordSet = new Set(data.toLowerCase().split('\n'));
-} catch (err) {
-	console.error('error loading banned wordlist', err);
-}
+// Only load wordlists on the server side to avoid 'fs' issues in the browser
+if (!isBrowser()) {
+	try {
+		// Using dynamic import for fs to prevent bundling in client-side code
+		const fs = require('fs');
+		try {
+			let data = fs.readFileSync('./wordlist.txt', 'utf8');
+			dictionary = new Set(data.toLowerCase().split('\n'));
+		} catch (err) {
+			console.error('error loading wordlist', err);
+		}
 
-let bannedWordSet2: Array<string>;
-try {
-	let data = fs.readFileSync('./bannedwordlist2.txt', 'utf8');
-	bannedWordSet2 = data.toLowerCase().split('\n');
-} catch (err) {
-	console.error('error loading banned wordlist 2', err);
+		try {
+			let data = fs.readFileSync('./bannedwordlist.txt', 'utf8');
+			bannedWordSet = new Set(data.toLowerCase().split('\n'));
+		} catch (err) {
+			console.error('error loading banned wordlist', err);
+		}
+
+		try {
+			let data = fs.readFileSync('./bannedwordlist2.txt', 'utf8');
+			bannedWordSet2 = data.toLowerCase().split('\n');
+		} catch (err) {
+			console.error('error loading banned wordlist 2', err);
+		}
+	} catch (err) {
+		console.error('Could not load fs module', err);
+	}
 }
 
 export function naked(title: string): string {
