@@ -53,9 +53,8 @@ function isValidSHA40Hash(hash: string): boolean {
 
 export const getDeviceCode = async () => {
 	try {
-		const proxyUrl = getProxyUrl(config.proxy);
-		const url = `${proxyUrl}${config.realDebridHostname}/oauth/v2/device/code?client_id=${config.realDebridClientId}&new_credentials=yes`;
-		const response = await axios.get<DeviceCodeResponse>(url);
+		// Use our API route instead of direct Real-Debrid API call
+		const response = await axios.get<DeviceCodeResponse>('/api/realdebrid/device-code');
 		return response.data;
 	} catch (error: any) {
 		console.error('Error fetching device code:', error.message);
@@ -65,9 +64,10 @@ export const getDeviceCode = async () => {
 
 export const getCredentials = async (deviceCode: string) => {
 	try {
-		const proxyUrl = getProxyUrl(config.proxy);
-		const url = `${proxyUrl}${config.realDebridHostname}/oauth/v2/device/credentials?client_id=${config.realDebridClientId}&code=${deviceCode}`;
-		const response = await axios.get<CredentialsResponse>(url);
+		// Use our API route instead of direct Real-Debrid API call
+		const response = await axios.get<CredentialsResponse>(
+			`/api/realdebrid/credentials?deviceCode=${deviceCode}`
+		);
 		return response.data;
 	} catch (error: any) {
 		console.error('Error fetching credentials:', error.message);
@@ -82,22 +82,33 @@ export const getToken = async (
 	bare: boolean = false
 ) => {
 	try {
-		const params = new URLSearchParams();
-		params.append('client_id', clientId);
-		params.append('client_secret', clientSecret);
-		params.append('code', refreshToken);
-		params.append('grant_type', 'http://oauth.net/grant_type/device/1.0');
+		if (bare) {
+			// Keep the bare option for direct API calls when needed
+			const params = new URLSearchParams();
+			params.append('client_id', clientId);
+			params.append('client_secret', clientSecret);
+			params.append('code', refreshToken);
+			params.append('grant_type', 'http://oauth.net/grant_type/device/1.0');
 
-		const response = await axios.post<AccessTokenResponse>(
-			`${bare ? 'https://api.real-debrid.com' : getProxyUrl(config.proxy) + config.realDebridHostname}/oauth/v2/token`,
-			params.toString(),
-			{
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
-				},
-			}
-		);
-		return response.data;
+			const response = await axios.post<AccessTokenResponse>(
+				'https://api.real-debrid.com/oauth/v2/token',
+				params.toString(),
+				{
+					headers: {
+						'Content-Type': 'application/x-www-form-urlencoded',
+					},
+				}
+			);
+			return response.data;
+		} else {
+			// Use our API route for browser requests
+			const response = await axios.post<AccessTokenResponse>('/api/realdebrid/token', {
+				clientId,
+				clientSecret,
+				refreshToken,
+			});
+			return response.data;
+		}
 	} catch (error: any) {
 		console.error('Error fetching access token:', error.message);
 		throw error;
