@@ -89,11 +89,15 @@ function TorrentsPage() {
 
 	const [uncachedRdHashes, setUncachedRdHashes] = useState<Set<string>>(new Set());
 	const [uncachedAdIDs, setUncachedAdIDs] = useState<string[]>([]);
-	const [shouldDownloadMagnets] = useState(
-		() =>
-			typeof window !== 'undefined' &&
-			window.localStorage.getItem('settings:downloadMagnets') === 'true'
-	);
+	const [shouldDownloadMagnets, setShouldDownloadMagnets] = useState(false);
+
+	// Initialize shouldDownloadMagnets from localStorage after component mounts
+	useEffect(() => {
+		if (typeof window !== 'undefined') {
+			const stored = window.localStorage.getItem('settings:downloadMagnets') === 'true';
+			setShouldDownloadMagnets(stored);
+		}
+	}, []);
 
 	// filter counts
 	const [slowCount, setSlowCount] = useState(0);

@@ -413,6 +413,7 @@ function createAxiosClient(token: string): AxiosInstance {
 		headers: {
 			Authorization: `Bearer ${token}`,
 		},
+		timeout: parseInt(process.env.REQUEST_TIMEOUT || '10000', 10), // Add proper timeout
 	});
 
 	// Rate limiting configuration

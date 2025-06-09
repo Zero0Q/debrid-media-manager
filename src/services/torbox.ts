@@ -19,6 +19,7 @@ function createAxiosClient(token: string): AxiosInstance {
 	if (!axiosInstance) {
 		axiosInstance = axios.create({
 			baseURL: config.torboxHostname || BASE_URL,
+			timeout: parseInt(process.env.REQUEST_TIMEOUT || '10000', 10), // Add proper timeout
 		});
 
 		// Rate limiting configuration

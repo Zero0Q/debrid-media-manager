@@ -9,6 +9,6 @@ export const createAxiosInstance = (agent: SocksProxyAgent) => {
 		headers: {
 			'user-agent': new UserAgent().toString(),
 		},
-		timeout: parseInt(process.env.REQUEST_TIMEOUT || '3000', 10),
+		timeout: parseInt(process.env.REQUEST_TIMEOUT || '10000', 10), // Use 10s instead of 3s fallback
 	});
 };

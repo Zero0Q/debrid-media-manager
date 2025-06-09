@@ -18,71 +18,116 @@ export const SettingsSection = () => {
 		defaultMagnetInstructionsHidden
 	);
 
-	const storedPlayer = window.localStorage.getItem('settings:player') || defaultPlayer;
-	const movieMaxSize = window.localStorage.getItem('settings:movieMaxSize') || defaultMovieSize;
-	const episodeMaxSize =
-		window.localStorage.getItem('settings:episodeMaxSize') || defaultEpisodeSize;
-	const onlyTrustedTorrents =
-		window.localStorage.getItem('settings:onlyTrustedTorrents') === 'true';
-	const defaultTorrentsFilterValue =
-		window.localStorage.getItem('settings:defaultTorrentsFilter') || defaultTorrentsFilter;
-	const downloadMagnets =
-		window.localStorage.getItem('settings:downloadMagnets') === 'true' ||
-		defaultDownloadMagnets;
+	// Use state for localStorage values to prevent hydration mismatch
+	const [storedPlayer, setStoredPlayer] = useState(defaultPlayer);
+	const [movieMaxSize, setMovieMaxSize] = useState(defaultMovieSize);
+	const [episodeMaxSize, setEpisodeMaxSize] = useState(defaultEpisodeSize);
+	const [onlyTrustedTorrents, setOnlyTrustedTorrents] = useState(false);
+	const [defaultTorrentsFilterValue, setDefaultTorrentsFilterValue] =
+		useState(defaultTorrentsFilter);
+	const [downloadMagnets, setDownloadMagnets] = useState(defaultDownloadMagnets);
 
 	useEffect(() => {
-		// Check if protocol handler is registered
-		const checkProtocolHandler = () => {
+		// Only access localStorage after component mounts
+		if (typeof window !== 'undefined') {
+			setStoredPlayer(window.localStorage.getItem('settings:player') || defaultPlayer);
+			setMovieMaxSize(
+				window.localStorage.getItem('settings:movieMaxSize') || defaultMovieSize
+			);
+			setEpisodeMaxSize(
+				window.localStorage.getItem('settings:episodeMaxSize') || defaultEpisodeSize
+			);
+			setOnlyTrustedTorrents(
+				window.localStorage.getItem('settings:onlyTrustedTorrents') === 'true'
+			);
+			setDefaultTorrentsFilterValue(
+				window.localStorage.getItem('settings:defaultTorrentsFilter') ||
+					defaultTorrentsFilter
+			);
+			setDownloadMagnets(
+				window.localStorage.getItem('settings:downloadMagnets') === 'true' ||
+					defaultDownloadMagnets
+			);
+
+			// Check if protocol handler is registered
 			const isEnabled =
 				window.localStorage.getItem('settings:magnetHandlerEnabled') === 'true';
 			setIsMagnetHandlerEnabled(isEnabled);
-		};
-		checkProtocolHandler();
 
-		// Check if instructions are hidden
-		const checkInstructionsHidden = () => {
+			// Check if instructions are hidden
 			const isHidden =
 				window.localStorage.getItem('settings:magnetInstructionsHidden') === 'true';
 			setIsInstructionsHidden(isHidden);
-		};
-		checkInstructionsHidden();
+		}
 	}, []);
 
 	const handlePlayerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		window.localStorage.setItem('settings:player', e.target.value);
+		const value = e.target.value;
+		setStoredPlayer(value);
+		if (typeof window !== 'undefined') {
+			window.localStorage.setItem('settings:player', value);
+		}
 	};
 
 	const handleMovieSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		window.localStorage.setItem('settings:movieMaxSize', e.target.value);
+		const value = e.target.value;
+		setMovieMaxSize(value);
+		if (typeof window !== 'undefined') {
+			window.localStorage.setItem('settings:movieMaxSize', value);
+		}
 	};
 
 	const handleEpisodeSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		window.localStorage.setItem('settings:episodeMaxSize', e.target.value);
+		const value = e.target.value;
+		setEpisodeMaxSize(value);
+		if (typeof window !== 'undefined') {
+			window.localStorage.setItem('settings:episodeMaxSize', value);
+		}
 	};
 
 	const handleTorrentsFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		window.localStorage.setItem('settings:defaultTorrentsFilter', e.target.value);
+		const value = e.target.value;
+		setDefaultTorrentsFilterValue(value);
+		if (typeof window !== 'undefined') {
+			window.localStorage.setItem('settings:defaultTorrentsFilter', value);
+		}
 	};
 
 	const handleTrustedTorrentsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		window.localStorage.setItem('settings:onlyTrustedTorrents', String(e.target.checked));
+		const checked = e.target.checked;
+		setOnlyTrustedTorrents(checked);
+		if (typeof window !== 'undefined') {
+			window.localStorage.setItem('settings:onlyTrustedTorrents', String(checked));
+		}
 	};
 
 	const handleDownloadMagnetsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		window.localStorage.setItem('settings:downloadMagnets', String(e.target.checked));
+		const checked = e.target.checked;
+		setDownloadMagnets(checked);
+		if (typeof window !== 'undefined') {
+			window.localStorage.setItem('settings:downloadMagnets', String(checked));
+		}
 	};
 
 	const handleHideInstructions = () => {
-		window.localStorage.setItem('settings:magnetInstructionsHidden', 'true');
 		setIsInstructionsHidden(true);
+		if (typeof window !== 'undefined') {
+			window.localStorage.setItem('settings:magnetInstructionsHidden', 'true');
+		}
 	};
 
 	const handleShowInstructions = () => {
-		window.localStorage.setItem('settings:magnetInstructionsHidden', 'false');
 		setIsInstructionsHidden(false);
+		if (typeof window !== 'undefined') {
+			window.localStorage.setItem('settings:magnetInstructionsHidden', 'false');
+		}
 	};
 
 	const getBrowserSettingsInfo = () => {
+		if (typeof window === 'undefined') {
+			return { text: 'Browser protocol handler settings:', url: '' };
+		}
+
 		const ua = navigator.userAgent;
 		if (ua.includes('Chrome') && !ua.includes('Edg')) {
 			return {
@@ -160,7 +205,7 @@ export const SettingsSection = () => {
 									<select
 										id="dmm-movie-max-size"
 										className="w-full rounded bg-gray-800 px-2 py-2.5 text-gray-200"
-										defaultValue={movieMaxSize}
+										value={movieMaxSize}
 										onChange={handleMovieSizeChange}
 									>
 										<option value="1">1 GB (~1.5 Mbps)</option>
@@ -178,7 +223,7 @@ export const SettingsSection = () => {
 									<select
 										id="dmm-episode-max-size"
 										className="w-full rounded bg-gray-800 px-2 py-2.5 text-gray-200"
-										defaultValue={episodeMaxSize}
+										value={episodeMaxSize}
 										onChange={handleEpisodeSizeChange}
 									>
 										<option value="0.1">100 MB (~0.7 Mbps)</option>
@@ -198,7 +243,7 @@ export const SettingsSection = () => {
 							<select
 								id="dmm-player"
 								className="w-full rounded bg-gray-800 px-2 py-2.5 text-gray-200"
-								defaultValue={storedPlayer}
+								value={storedPlayer}
 								onChange={handlePlayerChange}
 							>
 								<optgroup label="Web">
@@ -239,7 +284,7 @@ export const SettingsSection = () => {
 								type="text"
 								className="w-full rounded bg-gray-800 px-2 py-2.5 text-gray-200"
 								placeholder="filter results, supports regex"
-								defaultValue={defaultTorrentsFilterValue}
+								value={defaultTorrentsFilterValue}
 								onChange={handleTorrentsFilterChange}
 							/>
 						</div>
@@ -249,7 +294,7 @@ export const SettingsSection = () => {
 								id="dmm-only-trusted-torrents"
 								type="checkbox"
 								className="h-5 w-5 rounded border-gray-600 bg-gray-800"
-								defaultChecked={onlyTrustedTorrents}
+								checked={onlyTrustedTorrents}
 								onChange={handleTrustedTorrentsChange}
 							/>
 							<label className="font-semibold">Only trusted torrents</label>
@@ -260,7 +305,7 @@ export const SettingsSection = () => {
 								id="dmm-download-magnets"
 								type="checkbox"
 								className="h-5 w-5 rounded border-gray-600 bg-gray-800"
-								defaultChecked={downloadMagnets}
+								checked={downloadMagnets}
 								onChange={handleDownloadMagnetsChange}
 							/>
 							<label className="font-semibold">
@@ -280,7 +325,10 @@ export const SettingsSection = () => {
 							: 'border-blue-500 bg-blue-900/30 text-blue-100 hover:bg-blue-800/50'
 					} px-4 py-2 text-sm transition-colors`}
 					onClick={() => {
-						if ('registerProtocolHandler' in navigator) {
+						if (
+							typeof window !== 'undefined' &&
+							'registerProtocolHandler' in navigator
+						) {
 							try {
 								navigator.registerProtocolHandler(
 									'magnet',
