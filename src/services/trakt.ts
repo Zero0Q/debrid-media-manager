@@ -4,11 +4,18 @@ import { isBrowser } from '../utils/checks';
 
 const { publicRuntimeConfig: config } = getConfig();
 
-// Use local proxy in production environment or the direct API URL in development
-const TRAKT_API_URL =
-	isBrowser() && process.env.NODE_ENV === 'production'
-		? '/api/localproxy?url=https://api.trakt.tv'
-		: 'https://api.trakt.tv';
+// Check if we're in production and browser environment
+const isProduction = process.env.NODE_ENV === 'production' && isBrowser();
+
+// Helper function to construct URLs correctly for the local proxy
+function getApiUrl(endpoint: string): string {
+	if (isProduction) {
+		// For production browser environment, use the local proxy
+		return `/api/localproxy?url=${encodeURIComponent(`https://api.trakt.tv${endpoint}`)}`;
+	}
+	// For development or server-side, use the direct API URL
+	return `https://api.trakt.tv${endpoint}`;
+}
 
 export interface TraktMedia {
 	title: string;
@@ -51,10 +58,10 @@ export const getSearchSuggestions = async (
 		};
 
 		const typeParam = types.join(',');
-		const response = await axios.get<TraktSearchResult[]>(
-			`${TRAKT_API_URL}/search/${typeParam}?query=${encodeURIComponent(query)}`,
-			{ headers }
-		);
+		const endpoint = `/search/${typeParam}?query=${encodeURIComponent(query)}`;
+		const url = getApiUrl(endpoint);
+
+		const response = await axios.get<TraktSearchResult[]>(url, { headers });
 
 		return response.data;
 	} catch (error: any) {
@@ -75,9 +82,8 @@ export const getMediaData = async (
 			'trakt-api-key': client_id,
 		};
 
-		const response = await axios.get<TraktMediaItem[]>(`${TRAKT_API_URL}/${endpoint}`, {
-			headers,
-		});
+		const url = getApiUrl(endpoint);
+		const response = await axios.get<TraktMediaItem[]>(url, { headers });
 
 		return response.data;
 	} catch (error: any) {
@@ -100,10 +106,10 @@ export const getTrendingByGenre = async (
 			'trakt-api-key': client_id,
 		};
 
-		const response = await axios.get<TraktMediaItem[]>(
-			`${TRAKT_API_URL}/${type}/trending?genres=${genre}&limit=${limit}`,
-			{ headers }
-		);
+		const endpoint = `/${type}/trending?genres=${genre}&limit=${limit}`;
+		const url = getApiUrl(endpoint);
+
+		const response = await axios.get<TraktMediaItem[]>(url, { headers });
 
 		return response.data;
 	} catch (error: any) {
@@ -125,10 +131,10 @@ export const getPopularByGenre = async (
 			'trakt-api-key': client_id,
 		};
 
-		const response = await axios.get<TraktMedia[]>(
-			`${TRAKT_API_URL}/${type}/popular?genres=${genre}&limit=${limit}`,
-			{ headers }
-		);
+		const endpoint = `/${type}/popular?genres=${genre}&limit=${limit}`;
+		const url = getApiUrl(endpoint);
+
+		const response = await axios.get<TraktMedia[]>(url, { headers });
 
 		// Transform the response to match the expected format
 		return response.data.map((item) => ({
@@ -202,18 +208,32 @@ export const getTraktUser = async (accessToken: string) => {
 			'trakt-api-key': config.traktClientId,
 		};
 
-		const response = await axios.get<TraktUser>(`${TRAKT_API_URL}/users/settings`, {
-			headers: headers,
-		});
+		// Use the helper function to get the correct URL
+		const url = getApiUrl('/users/settings');
+
+		console.log('Fetching Trakt user settings from URL:', url);
+		console.log('With headers:', JSON.stringify(headers));
+
+		const response = await axios.get<TraktUser>(url, { headers });
 
 		if (response.status !== 200) {
 			throw new Error(`Error: ${response.status}`);
 		}
 
-		const data = await response.data;
+		const data = response.data;
 		return data;
-	} catch (error) {
-		console.error(`Failed to fetch Trakt user settings: ${error}`);
+	} catch (error: any) {
+		console.error(`Failed to fetch Trakt user settings:`, error);
+
+		// Add more detailed error logging
+		if (error.response) {
+			console.error('Error response:', {
+				status: error.response.status,
+				data: error.response.data,
+				headers: error.response.headers,
+			});
+		}
+
 		throw error;
 	}
 };
@@ -259,23 +279,20 @@ export const getUsersPersonalLists = async (
 	accessToken: string,
 	userSlug: string
 ): Promise<TraktList[]> => {
-	const url = `${TRAKT_API_URL}/users/${userSlug}/lists`;
+	const endpoint = `/users/${userSlug}/lists`;
 	let page = 1;
 	const limit = 100; // Maximum items per page
 	let allLists: TraktList[] = [];
 
 	try {
 		while (true) {
+			const url = getApiUrl(`${endpoint}?page=${page}&limit=${limit}`);
 			const response = await axios.get<TraktList[]>(url, {
 				headers: {
 					Authorization: `Bearer ${accessToken}`,
 					'Content-Type': 'application/json',
 					'trakt-api-version': '2',
 					'trakt-api-key': config.traktClientId,
-				},
-				params: {
-					page,
-					limit,
 				},
 			});
 
@@ -298,23 +315,20 @@ export const getLikedLists = async (
 	accessToken: string,
 	userSlug: string
 ): Promise<TraktListContainer[]> => {
-	const url = `${TRAKT_API_URL}/users/${userSlug}/likes/lists`;
+	const endpoint = `/users/${userSlug}/likes/lists`;
 	let page = 1;
 	const limit = 100; // Maximum items per page
 	let allLists: TraktListContainer[] = [];
 
 	try {
 		while (true) {
+			const url = getApiUrl(`${endpoint}?page=${page}&limit=${limit}`);
 			const response = await axios.get<TraktListContainer[]>(url, {
 				headers: {
 					Authorization: `Bearer ${accessToken}`,
 					'Content-Type': 'application/json',
 					'trakt-api-version': '2',
 					'trakt-api-key': config.traktClientId,
-				},
-				params: {
-					page,
-					limit,
 				},
 			});
 
@@ -328,7 +342,7 @@ export const getLikedLists = async (
 		}
 		return allLists;
 	} catch (error) {
-		console.error("Error fetching user's personal lists:", error);
+		console.error("Error fetching user's liked lists:", error);
 		throw error;
 	}
 };
@@ -339,9 +353,9 @@ export async function fetchListItems(
 	listId: number,
 	type?: string
 ): Promise<TraktMediaItem[]> {
-	let apiEndpoint = `${TRAKT_API_URL}/users/${userSlug}/lists/${listId}/items`;
+	let endpoint = `/users/${userSlug}/lists/${listId}/items`;
 	if (type) {
-		apiEndpoint += `/${type}`;
+		endpoint += `/${type}`;
 	}
 
 	let page = 1;
@@ -350,16 +364,13 @@ export async function fetchListItems(
 
 	try {
 		while (true) {
-			const response = await axios.get<TraktMediaItem[]>(apiEndpoint, {
+			const url = getApiUrl(`${endpoint}?page=${page}&limit=${limit}`);
+			const response = await axios.get<TraktMediaItem[]>(url, {
 				headers: {
 					Authorization: `Bearer ${accessToken}`,
 					'Content-Type': 'application/json',
 					'trakt-api-version': '2',
 					'trakt-api-key': config.traktClientId,
-				},
-				params: {
-					page,
-					limit,
 				},
 			});
 
@@ -373,6 +384,7 @@ export async function fetchListItems(
 		}
 		return allItems;
 	} catch (error) {
+		console.error('Error fetching list items:', error);
 		throw new Error('Error fetching list items');
 	}
 }
@@ -390,7 +402,9 @@ export interface TraktWatchlistItem {
 
 // New function to fetch watchlist movies
 export const getWatchlistMovies = async (accessToken: string): Promise<TraktWatchlistItem[]> => {
-	const url = `${TRAKT_API_URL}/sync/watchlist/movies/added`;
+	const endpoint = '/sync/watchlist/movies/added';
+	const url = getApiUrl(endpoint);
+
 	try {
 		const response = await axios.get<TraktWatchlistItem[]>(url, {
 			headers: {
@@ -409,7 +423,9 @@ export const getWatchlistMovies = async (accessToken: string): Promise<TraktWatc
 
 // New function to fetch watchlist shows
 export const getWatchlistShows = async (accessToken: string): Promise<TraktWatchlistItem[]> => {
-	const url = `${TRAKT_API_URL}/sync/watchlist/shows/added`;
+	const endpoint = '/sync/watchlist/shows/added';
+	const url = getApiUrl(endpoint);
+
 	try {
 		const response = await axios.get<TraktWatchlistItem[]>(url, {
 			headers: {
@@ -426,17 +442,11 @@ export const getWatchlistShows = async (accessToken: string): Promise<TraktWatch
 	}
 };
 
-// New interface for collection items
-export interface TraktCollectionItem {
-	last_collected_at: string;
-	last_updated_at: string;
-	movie?: TraktMedia;
-	show?: TraktMedia;
-}
-
 // New function to fetch collection movies
 export const getCollectionMovies = async (accessToken: string): Promise<TraktCollectionItem[]> => {
-	const url = `${TRAKT_API_URL}/sync/collection/movies`;
+	const endpoint = '/sync/collection/movies';
+	const url = getApiUrl(endpoint);
+
 	try {
 		const response = await axios.get<TraktCollectionItem[]>(url, {
 			headers: {
@@ -455,7 +465,9 @@ export const getCollectionMovies = async (accessToken: string): Promise<TraktCol
 
 // New function to fetch collection shows
 export const getCollectionShows = async (accessToken: string): Promise<TraktCollectionItem[]> => {
-	const url = `${TRAKT_API_URL}/sync/collection/shows`;
+	const endpoint = '/sync/collection/shows';
+	const url = getApiUrl(endpoint);
+
 	try {
 		const response = await axios.get<TraktCollectionItem[]>(url, {
 			headers: {
