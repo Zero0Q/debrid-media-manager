@@ -431,13 +431,6 @@ function HashlistPage() {
 						{allHashLists ? 'All Hash Lists' : hashlistTitle} ({userTorrentsList.length}{' '}
 						files in total; size: {(totalBytes / ONE_GIGABYTE / 1024).toFixed(1)} TB)
 					</h1>
-					<button
-						className="rounded border-2 border-purple-500 bg-purple-900/30 px-4 py-2 font-semibold text-purple-100 transition-colors hover:bg-purple-800/50"
-						onClick={loadAllHashLists}
-						disabled={allHashLists}
-					>
-						{allHashLists ? 'Viewing All Hash Lists' : 'All Hash Lists'}
-					</button>
 				</div>
 				<Link
 					href="/"
@@ -491,33 +484,13 @@ function HashlistPage() {
 				>
 					<FaArrowRight />
 				</button>
-				<Link
-					href="/hashlist?mediaType=movie"
-					className="mb-2 mr-2 rounded border-2 border-sky-500 bg-sky-900/30 px-2 py-1 text-sky-100 transition-colors hover:bg-sky-800/50"
+				<button
+					className="mb-2 mr-2 rounded border-2 border-purple-500 bg-purple-900/30 px-2 py-1 font-semibold text-purple-100 transition-colors hover:bg-purple-800/50"
+					onClick={loadAllHashLists}
+					disabled={allHashLists}
 				>
-					{movieCount} Movies
-				</Link>
-				<Link
-					href="/hashlist?mediaType=tv"
-					className="mb-2 mr-2 rounded border-2 border-sky-500 bg-sky-900/30 px-2 py-1 text-sky-100 transition-colors hover:bg-sky-800/50"
-				>
-					{tvCount} TV Shows
-				</Link>
-				{(rdKey || adKey) && (
-					<button
-						className={`mb-2 mr-2 rounded border-2 ${
-							showOnlyAvailable
-								? 'border-green-500 bg-green-900/30 text-green-100'
-								: 'border-gray-500 bg-gray-900/30 text-gray-100'
-						} px-2 py-1 transition-colors hover:bg-opacity-70`}
-						onClick={() => {
-							setShowOnlyAvailable(!showOnlyAvailable);
-							setCurrentPage(1);
-						}}
-					>
-						{showOnlyAvailable ? 'Instant Only' : 'All Torrents'}
-					</button>
-				)}
+					{allHashLists ? 'Viewing All Hash Lists' : 'All Hash Lists'}
+				</button>
 				{rdKey && (
 					<>
 						<button
