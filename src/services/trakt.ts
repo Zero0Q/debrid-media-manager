@@ -246,36 +246,20 @@ export const getUsersPersonalLists = async (
 	accessToken: string,
 	userSlug: string
 ): Promise<TraktList[]> => {
-	const url = `${TRAKT_API_URL}/users/${userSlug}/lists`;
-	let page = 1;
-	const limit = 100; // Maximum items per page
-	let allLists: TraktList[] = [];
-
 	try {
-		while (true) {
-			const response = await axios.get<TraktList[]>(url, {
-				headers: {
-					Authorization: `Bearer ${accessToken}`,
-					'Content-Type': 'application/json',
-					'trakt-api-version': '2',
-					'trakt-api-key': config.traktClientId,
-				},
-				params: {
-					page,
-					limit,
-				},
-			});
+		console.log('getUsersPersonalLists: Using API route /api/trakt/lists');
+		const response = await axios.get<TraktList[]>('/api/trakt/lists', {
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+			params: {
+				userSlug,
+			},
+		});
 
-			const lists = response.data;
-			if (lists.length === 0) break;
-
-			allLists = [...allLists, ...lists];
-			if (lists.length < limit) break;
-
-			page++;
-		}
-		return allLists;
-	} catch (error) {
+		console.log('getUsersPersonalLists: Success!', response.data);
+		return response.data;
+	} catch (error: any) {
 		console.error("Error fetching user's personal lists:", error);
 		throw error;
 	}
@@ -285,37 +269,21 @@ export const getLikedLists = async (
 	accessToken: string,
 	userSlug: string
 ): Promise<TraktListContainer[]> => {
-	const url = `${TRAKT_API_URL}/users/${userSlug}/likes/lists`;
-	let page = 1;
-	const limit = 100; // Maximum items per page
-	let allLists: TraktListContainer[] = [];
-
 	try {
-		while (true) {
-			const response = await axios.get<TraktListContainer[]>(url, {
-				headers: {
-					Authorization: `Bearer ${accessToken}`,
-					'Content-Type': 'application/json',
-					'trakt-api-version': '2',
-					'trakt-api-key': config.traktClientId,
-				},
-				params: {
-					page,
-					limit,
-				},
-			});
+		console.log('getLikedLists: Using API route /api/trakt/liked-lists');
+		const response = await axios.get<TraktListContainer[]>('/api/trakt/liked-lists', {
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+			params: {
+				userSlug,
+			},
+		});
 
-			const lists = response.data;
-			if (lists.length === 0) break;
-
-			allLists = [...allLists, ...lists];
-			if (lists.length < limit) break;
-
-			page++;
-		}
-		return allLists;
-	} catch (error) {
-		console.error("Error fetching user's personal lists:", error);
+		console.log('getLikedLists: Success!', response.data);
+		return response.data;
+	} catch (error: any) {
+		console.error("Error fetching user's liked lists:", error);
 		throw error;
 	}
 };
@@ -326,41 +294,24 @@ export async function fetchListItems(
 	listId: number,
 	type?: string
 ): Promise<TraktMediaItem[]> {
-	let apiEndpoint = `${TRAKT_API_URL}/users/${userSlug}/lists/${listId}/items`;
-	if (type) {
-		apiEndpoint += `/${type}`;
-	}
-
-	let page = 1;
-	const limit = 100; // Maximum items per page
-	let allItems: TraktMediaItem[] = [];
-
 	try {
-		while (true) {
-			const response = await axios.get<TraktMediaItem[]>(apiEndpoint, {
-				headers: {
-					Authorization: `Bearer ${accessToken}`,
-					'Content-Type': 'application/json',
-					'trakt-api-version': '2',
-					'trakt-api-key': config.traktClientId,
-				},
-				params: {
-					page,
-					limit,
-				},
-			});
+		console.log('fetchListItems: Using API route /api/trakt/list-items');
+		const response = await axios.get<TraktMediaItem[]>('/api/trakt/list-items', {
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+			params: {
+				userSlug,
+				listId: listId.toString(),
+				...(type && { type }),
+			},
+		});
 
-			const items = response.data;
-			if (items.length === 0) break;
-
-			allItems = [...allItems, ...items];
-			if (items.length < limit) break;
-
-			page++;
-		}
-		return allItems;
-	} catch (error) {
-		throw new Error('Error fetching list items');
+		console.log('fetchListItems: Success!', response.data);
+		return response.data;
+	} catch (error: any) {
+		console.error('Error fetching list items:', error);
+		throw error;
 	}
 }
 
@@ -377,18 +328,20 @@ export interface TraktWatchlistItem {
 
 // New function to fetch watchlist movies
 export const getWatchlistMovies = async (accessToken: string): Promise<TraktWatchlistItem[]> => {
-	const url = `${TRAKT_API_URL}/sync/watchlist/movies/added`;
 	try {
-		const response = await axios.get<TraktWatchlistItem[]>(url, {
+		console.log('getWatchlistMovies: Using API route /api/trakt/watchlist');
+		const response = await axios.get<TraktWatchlistItem[]>('/api/trakt/watchlist', {
 			headers: {
 				Authorization: `Bearer ${accessToken}`,
-				'Content-Type': 'application/json',
-				'trakt-api-version': '2',
-				'trakt-api-key': config.traktClientId,
+			},
+			params: {
+				type: 'movies',
 			},
 		});
+
+		console.log('getWatchlistMovies: Success!', response.data);
 		return response.data;
-	} catch (error) {
+	} catch (error: any) {
 		console.error('Error fetching watchlist movies:', error);
 		throw error;
 	}
@@ -396,18 +349,20 @@ export const getWatchlistMovies = async (accessToken: string): Promise<TraktWatc
 
 // New function to fetch watchlist shows
 export const getWatchlistShows = async (accessToken: string): Promise<TraktWatchlistItem[]> => {
-	const url = `${TRAKT_API_URL}/sync/watchlist/shows/added`;
 	try {
-		const response = await axios.get<TraktWatchlistItem[]>(url, {
+		console.log('getWatchlistShows: Using API route /api/trakt/watchlist');
+		const response = await axios.get<TraktWatchlistItem[]>('/api/trakt/watchlist', {
 			headers: {
 				Authorization: `Bearer ${accessToken}`,
-				'Content-Type': 'application/json',
-				'trakt-api-version': '2',
-				'trakt-api-key': config.traktClientId,
+			},
+			params: {
+				type: 'shows',
 			},
 		});
+
+		console.log('getWatchlistShows: Success!', response.data);
 		return response.data;
-	} catch (error) {
+	} catch (error: any) {
 		console.error('Error fetching watchlist shows:', error);
 		throw error;
 	}
@@ -423,18 +378,20 @@ export interface TraktCollectionItem {
 
 // New function to fetch collection movies
 export const getCollectionMovies = async (accessToken: string): Promise<TraktCollectionItem[]> => {
-	const url = `${TRAKT_API_URL}/sync/collection/movies`;
 	try {
-		const response = await axios.get<TraktCollectionItem[]>(url, {
+		console.log('getCollectionMovies: Using API route /api/trakt/collection');
+		const response = await axios.get<TraktCollectionItem[]>('/api/trakt/collection', {
 			headers: {
 				Authorization: `Bearer ${accessToken}`,
-				'Content-Type': 'application/json',
-				'trakt-api-version': '2',
-				'trakt-api-key': config.traktClientId,
+			},
+			params: {
+				type: 'movies',
 			},
 		});
+
+		console.log('getCollectionMovies: Success!', response.data);
 		return response.data;
-	} catch (error) {
+	} catch (error: any) {
 		console.error('Error fetching collection movies:', error);
 		throw error;
 	}
@@ -442,18 +399,20 @@ export const getCollectionMovies = async (accessToken: string): Promise<TraktCol
 
 // New function to fetch collection shows
 export const getCollectionShows = async (accessToken: string): Promise<TraktCollectionItem[]> => {
-	const url = `${TRAKT_API_URL}/sync/collection/shows`;
 	try {
-		const response = await axios.get<TraktCollectionItem[]>(url, {
+		console.log('getCollectionShows: Using API route /api/trakt/collection');
+		const response = await axios.get<TraktCollectionItem[]>('/api/trakt/collection', {
 			headers: {
 				Authorization: `Bearer ${accessToken}`,
-				'Content-Type': 'application/json',
-				'trakt-api-version': '2',
-				'trakt-api-key': config.traktClientId,
+			},
+			params: {
+				type: 'shows',
 			},
 		});
+
+		console.log('getCollectionShows: Success!', response.data);
 		return response.data;
-	} catch (error) {
+	} catch (error: any) {
 		console.error('Error fetching collection shows:', error);
 		throw error;
 	}
