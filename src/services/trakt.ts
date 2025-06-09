@@ -249,29 +249,22 @@ export interface TraktTokenResponse {
 
 export const refreshTraktToken = async (refreshToken: string): Promise<TraktTokenResponse> => {
 	try {
-		const requestBody = {
-			refresh_token: refreshToken,
-			client_id: process.env.NEXT_PUBLIC_TRAKT_CLIENT_ID || config.traktClientId,
-			client_secret: process.env.TRAKT_CLIENT_SECRET,
-			redirect_uri: '',
-			grant_type: 'refresh_token',
-		};
-
-		// Use the same proxy approach as other Trakt API calls
-		const tokenUrl = isProduction
-			? `/api/localproxy?url=${encodeURIComponent('https://api.trakt.tv/oauth/token')}`
-			: 'https://api.trakt.tv/oauth/token';
-
-		const response = await fetch(tokenUrl, {
+		// Use the server-side API endpoint for token refresh
+		const response = await fetch('/api/trakt/refresh', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
 			},
-			body: JSON.stringify(requestBody),
+			body: JSON.stringify({
+				refresh_token: refreshToken,
+			}),
 		});
 
 		if (!response.ok) {
-			throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`);
+			const errorData = await response.json().catch(() => ({}));
+			throw new Error(
+				`Token refresh failed: ${response.status} ${response.statusText}. ${errorData.errorMessage || ''}`
+			);
 		}
 
 		const data = await response.json();
