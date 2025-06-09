@@ -331,9 +331,8 @@ export const proxyUnrestrictLink = async (
 
 export const getTimeISO = async (): Promise<string> => {
 	try {
-		const response = await axios.get<string>(
-			`${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/time/iso`
-		);
+		// Always use direct API call for time/iso to avoid proxy issues
+		const response = await axios.get<string>(`https://api.real-debrid.com/rest/1.0/time/iso`);
 		return response.data;
 	} catch (error: any) {
 		console.error('Error fetching time:', error.message);
