@@ -53,11 +53,13 @@ function isValidSHA40Hash(hash: string): boolean {
 
 export const getDeviceCode = async () => {
 	try {
+		console.log('getDeviceCode: Using API route /api/realdebrid/device-code');
 		// Use our API route instead of direct Real-Debrid API call
 		const response = await axios.get<DeviceCodeResponse>('/api/realdebrid/device-code');
+		console.log('getDeviceCode: Success!', response.data);
 		return response.data;
 	} catch (error: any) {
-		console.error('Error fetching device code:', error.message);
+		console.error('Error fetching device code from API route:', error.message);
 		throw error;
 	}
 };
