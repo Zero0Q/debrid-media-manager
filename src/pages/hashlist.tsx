@@ -51,6 +51,8 @@ function HashlistPage() {
 	const [tvGroupingByTitle] = useState<Record<string, number>>({});
 	const [hasDupes] = useState<Array<string>>([]);
 	const [totalBytes, setTotalBytes] = useState<number>(0);
+	const [allHashLists, setAllHashLists] = useState<boolean>(false);
+	const [combinedTorrents, setCombinedTorrents] = useState<EnrichedHashlistTorrent[]>([]);
 
 	async function initialize() {
 		await torrentDB.initializeDB();
@@ -373,6 +375,50 @@ function HashlistPage() {
 		setCurrentPage((prev) => prev + 1);
 	}, []);
 
+	async function loadAllHashLists() {
+		try {
+			setAllHashLists(true);
+			const response = await fetch('https://hashlists.debridmediamanager.com/api/lists');
+			const lists = await response.json();
+
+			const allTorrents: EnrichedHashlistTorrent[] = [];
+			for (const list of lists) {
+				const response = await fetch(
+					`https://hashlists.debridmediamanager.com/api/list/${list.id}`
+				);
+				const torrents = await response.json();
+
+				const enrichedTorrents = torrents.map((torrent: any) => {
+					const mediaType = getTypeByName(torrent.filename);
+					const info =
+						mediaType === 'movie'
+							? filenameParse(torrent.filename)
+							: filenameParse(torrent.filename, true);
+					return {
+						score: getReleaseTags(torrent.filename, torrent.bytes / ONE_GIGABYTE).score,
+						info,
+						mediaType,
+						title: getMediaId(info, mediaType, false) || torrent.filename,
+						...torrent,
+					};
+				});
+
+				allTorrents.push(...enrichedTorrents);
+			}
+
+			// Remove duplicates based on hash
+			const uniqueTorrents = allTorrents.filter(
+				(t, i, self) => self.findIndex((s) => s.hash === t.hash) === i
+			);
+
+			setCombinedTorrents(uniqueTorrents);
+			setUserTorrentsList(uniqueTorrents);
+		} catch (error) {
+			console.error('Error loading all hash lists:', error);
+			toast.error('Error loading all hash lists');
+		}
+	}
+
 	return (
 		<div className="mx-2 my-1 min-h-screen bg-gray-900 text-gray-100">
 			<Head>
@@ -381,8 +427,8 @@ function HashlistPage() {
 			<Toaster position="bottom-right" />
 			<div className="mb-2 flex items-center justify-between">
 				<h1 className="text-xl font-bold text-white">
-					{hashlistTitle} ({userTorrentsList.length} files in total; size:{' '}
-					{(totalBytes / ONE_GIGABYTE / 1024).toFixed(1)} TB)
+					{allHashLists ? 'All Hash Lists' : hashlistTitle} ({userTorrentsList.length}{' '}
+					files in total; size: {(totalBytes / ONE_GIGABYTE / 1024).toFixed(1)} TB)
 				</h1>
 				<Link
 					href="/"
@@ -403,7 +449,23 @@ function HashlistPage() {
 					}}
 				/>
 			</div>
-			<div className="mb-4">
+			<div className="mb-4 flex flex-wrap items-center gap-2">
+				<button
+					className="rounded border-2 border-purple-500 bg-purple-900/30 px-2 py-1 text-purple-100 transition-colors hover:bg-purple-800/50"
+					onClick={loadAllHashLists}
+					disabled={allHashLists}
+				>
+					{allHashLists ? 'Viewing All Hash Lists' : 'View All Hash Lists'}
+				</button>
+				{allHashLists && (
+					<Link
+						href="/hashlist"
+						className="rounded border-2 border-yellow-500 bg-yellow-900/30 px-2 py-1 text-yellow-100 transition-colors hover:bg-yellow-800/50"
+						onClick={() => setAllHashLists(false)}
+					>
+						Return to Single List View
+					</Link>
+				)}
 				<button
 					className={`mb-2 mr-1 rounded border-2 border-indigo-500 bg-indigo-900/30 px-1 py-1 text-indigo-100 transition-colors hover:bg-indigo-800/50 ${
 						currentPage <= 1 ? 'cursor-not-allowed opacity-60' : ''
