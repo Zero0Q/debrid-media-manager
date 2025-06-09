@@ -15,11 +15,8 @@ function RecentlyUpdated() {
 	const fetchData = async () => {
 		setLoading(true);
 		try {
-			let path = 'api/browse/recent';
-			if (config.externalSearchApiHostname) {
-				path = encodeURIComponent(path);
-			}
-			let endpoint = `${config.externalSearchApiHostname || ''}/${path}`;
+			// Always use local API for browse/recent
+			const endpoint = '/api/browse/recent';
 			const res = await fetch(endpoint);
 			const data = await res.json();
 			setSearchResults(data);
