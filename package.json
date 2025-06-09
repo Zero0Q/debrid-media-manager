@@ -9,6 +9,7 @@
     "lint": "next lint",
     "format": "prettier --write 'src/**/*.{js,jsx,ts,tsx,json,md}'",
     "test": "vitest",
+    "test:media": "ts-node --project tsconfig.json --transpile-only src/utils/testMediaCLI.ts",
     "prepare": "husky"
   },
   "dependencies": {
