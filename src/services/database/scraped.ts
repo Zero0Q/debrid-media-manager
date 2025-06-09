@@ -248,6 +248,22 @@ export class ScrapedService extends DatabaseClient {
 		return cacheEntry !== null;
 	}
 
+	public async keyExistsInScraped(key: string): Promise<boolean> {
+		const cacheEntry = await this.prisma.scraped.findUnique({
+			where: { key },
+			select: { key: true },
+		});
+		return cacheEntry !== null;
+	}
+
+	public async keyExistsInScrapedTrue(key: string): Promise<boolean> {
+		const cacheEntry = await this.prisma.scrapedTrue.findUnique({
+			where: { key },
+			select: { key: true },
+		});
+		return cacheEntry !== null;
+	}
+
 	public async isOlderThan(imdbId: string, daysAgo: number): Promise<boolean> {
 		const cacheEntry = await this.prisma.scraped.findFirst({
 			where: {

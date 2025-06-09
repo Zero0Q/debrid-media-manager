@@ -113,6 +113,14 @@ export class Repository {
 		return this.scrapedService.keyExists(key);
 	}
 
+	public keyExistsInScrapedTrue(key: string) {
+		return this.scrapedService.keyExistsInScrapedTrue(key);
+	}
+
+	public keyExistsInScraped(key: string) {
+		return this.scrapedService.keyExistsInScraped(key);
+	}
+
 	public isOlderThan(imdbId: string, daysAgo: number) {
 		return this.scrapedService.isOlderThan(imdbId, daysAgo);
 	}
