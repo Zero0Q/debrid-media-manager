@@ -94,18 +94,26 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 		// Build request headers
 		let reqHeaders: Record<string, string> = {};
 
-		// First, add API specific headers as base
-		for (const [apiHost, headers] of Object.entries(API_HEADERS)) {
-			if (parsedUrl.hostname.includes(apiHost)) {
-				reqHeaders = { ...reqHeaders, ...headers };
-				break;
-			}
-		}
-
-		// Handle Authorization header specifically (case-insensitive)
+		// Handle Authorization header first and most importantly
 		const authHeader = req.headers.authorization || req.headers.Authorization;
 		if (authHeader) {
 			reqHeaders['Authorization'] = authHeader as string;
+			console.log(`Authorization header found: ${authHeader.substring(0, 20)}...`);
+		} else {
+			console.log('No Authorization header found in request');
+		}
+
+		// Add API specific headers, but don't override Authorization
+		for (const [apiHost, headers] of Object.entries(API_HEADERS)) {
+			if (parsedUrl.hostname.includes(apiHost)) {
+				Object.entries(headers).forEach(([key, value]) => {
+					// Don't override Authorization if it already exists
+					if (key.toLowerCase() !== 'authorization' || !reqHeaders['Authorization']) {
+						reqHeaders[key] = value;
+					}
+				});
+				break;
+			}
 		}
 
 		// Handle Content-Type header specifically
@@ -114,21 +122,26 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 			reqHeaders['Content-Type'] = contentTypeHeader as string;
 		}
 
-		// Forward other important headers
+		// Forward other important headers, but avoid duplicates
 		Object.entries(req.headers).forEach(([key, value]) => {
 			const lowerKey = key.toLowerCase();
-			// Skip authorization and content-type as we've already handled them above
+			// Skip if we've already handled these headers
 			if (lowerKey === 'authorization' || lowerKey === 'content-type') {
 				return;
 			}
 
+			// Handle trakt-specific headers from the client (they should override API defaults)
+			if (lowerKey.startsWith('trakt-')) {
+				if (typeof value === 'string') {
+					reqHeaders[key] = value;
+				} else if (Array.isArray(value) && value.length > 0) {
+					reqHeaders[key] = value[0];
+				}
+				return;
+			}
+
 			// Handle other custom headers
-			if (
-				lowerKey.startsWith('x-') ||
-				lowerKey.startsWith('trakt-') ||
-				lowerKey === 'user-agent' ||
-				lowerKey === 'accept'
-			) {
+			if (lowerKey.startsWith('x-') || lowerKey === 'user-agent' || lowerKey === 'accept') {
 				if (typeof value === 'string') {
 					reqHeaders[key] = value;
 				} else if (Array.isArray(value) && value.length > 0) {
@@ -138,7 +151,10 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 		});
 
 		// Debug log to see what headers are being sent
-		console.log(`Sending headers to ${parsedUrl.hostname}:`, JSON.stringify(reqHeaders));
+		console.log(
+			`Sending headers to ${parsedUrl.hostname}:`,
+			JSON.stringify(reqHeaders, null, 2)
+		);
 
 		// Handle request body for POST, PUT, PATCH, DELETE
 		let reqBody: string | URLSearchParams | undefined;
