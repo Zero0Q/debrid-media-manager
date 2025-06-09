@@ -17,6 +17,15 @@ import {
 
 const { publicRuntimeConfig: config } = getConfig();
 
+// Simple request cache implementation
+interface CacheEntry {
+	data: UserResponse;
+	timestamp: number;
+}
+
+const requestCache: Map<string, CacheEntry> = new Map();
+const CACHE_TTL = 2000; // 2 seconds TTL
+
 // Function to get appropriate URL based on environment
 function getApiUrl(baseUrl: string): string {
 	// In production with browser, use our local proxy
@@ -92,10 +101,26 @@ export const getToken = async (
 
 export const getCurrentUser = async (accessToken: string) => {
 	try {
+		// Check cache first
+		const cacheKey = `user-${accessToken}`;
+		const now = Date.now();
+		const cached = requestCache.get(cacheKey);
+
+		if (cached && now - cached.timestamp < CACHE_TTL) {
+			return cached.data;
+		}
+
 		const client = await createAxiosClient(accessToken);
 		const response = await client.get<UserResponse>(
 			`${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/user`
 		);
+
+		// Cache the response
+		requestCache.set(cacheKey, {
+			data: response.data,
+			timestamp: now,
+		});
+
 		return response.data;
 	} catch (error: any) {
 		console.error('Error fetching user information:', error.message);
