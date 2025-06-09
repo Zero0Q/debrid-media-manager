@@ -125,26 +125,36 @@ const useTrakt = () => {
 	const [user, setUser] = useState<TraktUser | null>(null);
 	const [error, setError] = useState<Error | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [isAuthenticating, setIsAuthenticating] = useState(false);
 	const [token, setToken] = useLocalStorage<string>('trakt:accessToken');
 	const [refreshToken, setRefreshToken] = useLocalStorage<string>('trakt:refreshToken');
 	const [_, setUserSlug] = useLocalStorage<string>('trakt:userSlug');
 
 	useEffect(() => {
+		// Prevent multiple simultaneous authentication attempts
+		if (isAuthenticating) {
+			return;
+		}
+
 		if (!token) {
 			setLoading(false);
 			return;
 		}
 
 		const auth = async () => {
+			setIsAuthenticating(true);
 			try {
 				const handleTokenRefresh = (newTokens: TraktTokenResponse) => {
 					console.log('Updating Trakt tokens in localStorage');
-					setToken(newTokens.access_token, newTokens.expires_in);
-					// CRITICAL FIX: Always update the refresh token when provided
-					if (newTokens.refresh_token) {
-						setRefreshToken(newTokens.refresh_token);
-						console.log('Updated refresh token in localStorage');
-					}
+					// Use a small delay to ensure state updates are processed
+					setTimeout(() => {
+						setToken(newTokens.access_token, newTokens.expires_in);
+						// CRITICAL FIX: Always update the refresh token when provided
+						if (newTokens.refresh_token) {
+							setRefreshToken(newTokens.refresh_token);
+							console.log('Updated refresh token in localStorage');
+						}
+					}, 100);
 				};
 
 				const userData = await getTraktUserWithRefresh(
@@ -165,11 +175,12 @@ const useTrakt = () => {
 				}
 			} finally {
 				setLoading(false);
+				setIsAuthenticating(false);
 			}
 		};
 
 		auth();
-	}, [token, refreshToken]);
+	}, [token]); // Remove refreshToken from dependencies to prevent re-runs
 
 	return { user, error, loading, hasAuth: !!token };
 };

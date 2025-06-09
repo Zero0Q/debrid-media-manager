@@ -117,10 +117,13 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 			}
 		}
 
-		// Handle Content-Type header specifically
+		// Handle Content-Type header specifically - preserve client's Content-Type
 		const contentTypeHeader = req.headers['content-type'] || req.headers['Content-Type'];
 		if (contentTypeHeader) {
-			reqHeaders['Content-Type'] = contentTypeHeader as string;
+			const ctValue = Array.isArray(contentTypeHeader)
+				? contentTypeHeader[0]
+				: contentTypeHeader;
+			reqHeaders['Content-Type'] = ctValue;
 		}
 
 		// Forward other important headers, but avoid duplicates

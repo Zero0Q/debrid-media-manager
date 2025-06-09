@@ -298,11 +298,24 @@ export const getTraktUserWithRefresh = async (
 					onTokenRefresh(newTokens);
 				}
 
+				// Wait a moment for the token to be updated in localStorage
+				await new Promise((resolve) => setTimeout(resolve, 150));
+
 				// Retry with new token
 				return await getTraktUser(newTokens.access_token);
-			} catch (refreshError) {
+			} catch (refreshError: any) {
 				console.error('Failed to refresh Trakt token:', refreshError);
-				throw new Error('Authentication failed. Please re-authenticate with Trakt.');
+
+				// Check if the refresh token itself is invalid
+				if (
+					refreshError.message?.includes('400') ||
+					refreshError.message?.includes('401')
+				) {
+					throw new Error('Authentication failed. Please re-authenticate with Trakt.');
+				}
+
+				// For other errors, rethrow the original error
+				throw new Error('Token refresh failed. Please try again or re-authenticate.');
 			}
 		}
 
