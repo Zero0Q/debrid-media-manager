@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>Debrid Media Manager Hash List</title>
+		<style>
+			body {
+				margin: 0;
+				padding: 0;
+				overflow: hidden;
+				font-family: sans-serif;
+			}
+			#panel {
+				height: 50px;
+				background-color: #f2f2f2;
+				display: flex;
+				align-items: center;
+				padding: 0 10px;
+			}
+
+			#panel #currentPath {
+				flex-grow: 1;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				margin-right: 10px;
+			}
+
+			#panel button {
+				margin-right: 10px;
+			}
+
+			iframe {
+				border: none;
+				position: absolute;
+				top: 50px;
+				left: 0;
+				width: 100%;
+				height: calc(100% - 50px);
+			}
+
+			#close a {
+				font-size: xx-large;
+				text-decoration: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="panel">
+			<span id="currentPath"></span>
+			<button id="allHashlistsButton">All hash lists</button>
+			<button id="previousButton">Previous hash list</button>
+			<button id="randomButton">Random hash list</button>
+			<button id="nextButton">Next hash list</button>
+			<span id="close"><a href="https://debridmediamanager.com/">[X]</a></span>
+		</div>
+		<iframe src=""></iframe>
+
+		<script>
+			// On page load
+			window.addEventListener("load", function () {
+				let htmlFiles = [];
+				let currentIndex = 0;
+
+				const currentPathElement = document.getElementById("currentPath");
+				const allHashlistsButton = document.getElementById("allHashlistsButton");
+				const previousButton = document.getElementById("previousButton");
+				const randomButton = document.getElementById("randomButton");
+				const nextButton = document.getElementById("nextButton");
+				const iframe = document.querySelector("iframe");
+
+				// Fetch contents of the GitHub API
+				fetch(
+					"https://api.github.com/repos/Zero0Q/hashlists/contents"
+				)
+					.then((response) => response.json())
+					.then((data) => {
+						// Get all entries with "path" ending in ".html"
+						htmlFiles = data.filter(
+							(entry) => !entry.path.endsWith("index.html")
+						);
+						const randomIndex = Math.floor(Math.random() * htmlFiles.length);
+						currentIndex = randomIndex;
+						// Load the first path in the iframe
+						loadPathAtIndex(currentIndex);
+					})
+					.catch((error) => {
+						console.error("Error:", error);
+					});
+
+				function loadPathAtIndex(index) {
+					const path = htmlFiles[index].path;
+					iframe.src = path;
+					currentPathElement.textContent = "https://zero0q.github.io/hashlists/"+path;
+					updateButtonStates();
+				}
+
+				function updateButtonStates() {
+					previousButton.disabled = currentIndex === 0;
+					randomButton.disabled = htmlFiles.length <= 1;
+					nextButton.disabled = currentIndex === htmlFiles.length - 1;
+				}
+
+				allHashlistsButton.addEventListener("click", function () {
+					// Show all hash lists - could navigate to a directory view or list
+					window.open("https://github.com/Zero0Q/hashlists", "_blank");
+				});
+
+				previousButton.addEventListener("click", function () {
+					if (currentIndex > 0) {
+						currentIndex--;
+						loadPathAtIndex(currentIndex);
+					}
+				});
+
+				randomButton.addEventListener("click", function () {
+					const randomIndex = Math.floor(Math.random() * htmlFiles.length);
+					currentIndex = randomIndex;
+					loadPathAtIndex(currentIndex);
+				});
+
+				nextButton.addEventListener("click", function () {
+					if (currentIndex < htmlFiles.length - 1) {
+						currentIndex++;
+						loadPathAtIndex(currentIndex);
+					}
+				});
+			});
+		</script>
+	</body>
+</html>
