@@ -189,25 +189,18 @@ export interface TraktUser {
 
 export const getTraktUser = async (accessToken: string) => {
 	try {
-		const headers = {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${accessToken}`,
-			'trakt-api-version': '2',
-			'trakt-api-key': config.traktClientId,
-		};
-
-		const response = await axios.get<TraktUser>(`${TRAKT_API_URL}/users/settings`, {
-			headers: headers,
+		console.log('getTraktUser: Using API route /api/trakt/user');
+		// Use our API route instead of direct Trakt API call
+		const response = await axios.get<TraktUser>('/api/trakt/user', {
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
 		});
 
-		if (response.status !== 200) {
-			throw new Error(`Error: ${response.status}`);
-		}
-
-		const data = await response.data;
-		return data;
-	} catch (error) {
-		console.error(`Failed to fetch Trakt user settings: ${error}`);
+		console.log('getTraktUser: Success!', response.data);
+		return response.data;
+	} catch (error: any) {
+		console.error('Error fetching Trakt user settings from API route:', error.message);
 		throw error;
 	}
 };
