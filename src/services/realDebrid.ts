@@ -141,29 +141,59 @@ export async function getUserTorrentsList(
 	bare: boolean = false
 ): Promise<UserTorrentsResult> {
 	try {
-		const client = await createAxiosClient(accessToken);
-		const response = await client.get<UserTorrentResponse[]>(
-			`${bare ? 'https://api.real-debrid.com' : getProxyUrl(config.proxy) + config.realDebridHostname}/rest/1.0/torrents`,
-			{
+		if (bare) {
+			// Keep the bare option for direct API calls when needed
+			const client = await createAxiosClient(accessToken);
+			const response = await client.get<UserTorrentResponse[]>(
+				`https://api.real-debrid.com/rest/1.0/torrents`,
+				{
+					params: { page, limit },
+				}
+			);
+
+			const {
+				data,
+				headers: { 'x-total-count': totalCount },
+			} = response;
+
+			let totalCountValue: number | null = null;
+			if (totalCount) {
+				totalCountValue = parseInt(totalCount, 10);
+				if (isNaN(totalCountValue)) {
+					totalCountValue = null;
+				}
+			}
+
+			return { data, totalCount: totalCountValue };
+		} else {
+			// Use our API route for browser requests
+			console.log('getUserTorrentsList: v2.0 - Using API route /api/realdebrid/torrents');
+			const response = await axios.get<UserTorrentResponse[]>('/api/realdebrid/torrents', {
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+				},
 				params: { page, limit },
-			}
-		);
+			});
 
-		const {
-			data,
-			headers: { 'x-total-count': totalCount },
-		} = response;
+			const {
+				data,
+				headers: { 'x-total-count': totalCount },
+			} = response;
 
-		// Parse the totalCount from the headers
-		let totalCountValue: number | null = null;
-		if (totalCount) {
-			totalCountValue = parseInt(totalCount, 10);
-			if (isNaN(totalCountValue)) {
-				totalCountValue = null;
+			let totalCountValue: number | null = null;
+			if (totalCount) {
+				totalCountValue = parseInt(totalCount, 10);
+				if (isNaN(totalCountValue)) {
+					totalCountValue = null;
+				}
 			}
+
+			console.log('getUserTorrentsList: Success!', {
+				count: data.length,
+				totalCount: totalCountValue,
+			});
+			return { data, totalCount: totalCountValue };
 		}
-
-		return { data, totalCount: totalCountValue };
 	} catch (error: any) {
 		console.error('Error fetching user torrents list:', error.message);
 		throw error;
