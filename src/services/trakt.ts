@@ -238,6 +238,81 @@ export const getTraktUser = async (accessToken: string) => {
 	}
 };
 
+// Add token refresh functionality
+export interface TraktTokenResponse {
+	access_token: string;
+	token_type: string;
+	expires_in: number;
+	refresh_token: string;
+	scope: string;
+}
+
+export const refreshTraktToken = async (refreshToken: string): Promise<TraktTokenResponse> => {
+	try {
+		const requestBody = {
+			refresh_token: refreshToken,
+			client_id: process.env.NEXT_PUBLIC_TRAKT_CLIENT_ID || config.traktClientId,
+			client_secret: process.env.TRAKT_CLIENT_SECRET,
+			redirect_uri: '',
+			grant_type: 'refresh_token',
+		};
+
+		const response = await fetch('https://api.trakt.tv/oauth/token', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(requestBody),
+		});
+
+		if (!response.ok) {
+			throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`);
+		}
+
+		const data = await response.json();
+		return data;
+	} catch (error) {
+		console.error('Error refreshing Trakt token:', error);
+		throw error;
+	}
+};
+
+// Enhanced getTraktUser function with automatic token refresh
+export const getTraktUserWithRefresh = async (
+	accessToken: string,
+	refreshToken?: string,
+	onTokenRefresh?: (newTokens: TraktTokenResponse) => void
+): Promise<TraktUser> => {
+	try {
+		// Try with current token first
+		return await getTraktUser(accessToken);
+	} catch (error: any) {
+		// If 401 Unauthorized and we have a refresh token, try to refresh
+		if (error.response?.status === 401 && refreshToken) {
+			console.log('Access token expired, attempting to refresh...');
+
+			try {
+				const newTokens = await refreshTraktToken(refreshToken);
+				console.log('Successfully refreshed Trakt tokens');
+
+				// Call the callback to update tokens in storage
+				if (onTokenRefresh) {
+					onTokenRefresh(newTokens);
+				}
+
+				// Retry with new token
+				return await getTraktUser(newTokens.access_token);
+			} catch (refreshError) {
+				console.error('Failed to refresh Trakt token:', refreshError);
+				throw new Error('Authentication failed. Please re-authenticate with Trakt.');
+			}
+		}
+
+		// Re-throw original error if not 401 or no refresh token
+		throw error;
+	}
+};
+
 interface TraktListIds {
 	trakt: number;
 	slug: string;

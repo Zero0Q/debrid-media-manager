@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { getAllDebridUser } from '../services/allDebrid';
 import { getCurrentUser as getRealDebridUser, getToken } from '../services/realDebrid';
 import { TorBoxUser, getUserData } from '../services/torbox';
-import { TraktUser, getTraktUser } from '../services/trakt';
+import { TraktTokenResponse, TraktUser, getTraktUserWithRefresh } from '../services/trakt';
 import { clearRdKeys } from '../utils/clearLocalStorage';
 import useLocalStorage from './localStorage';
 
@@ -124,21 +124,51 @@ const useTorBox = () => {
 const useTrakt = () => {
 	const [user, setUser] = useState<TraktUser | null>(null);
 	const [error, setError] = useState<Error | null>(null);
-	const [token] = useLocalStorage<string>('trakt:accessToken');
+	const [loading, setLoading] = useState(true);
+	const [token, setToken] = useLocalStorage<string>('trakt:accessToken');
+	const [refreshToken] = useLocalStorage<string>('trakt:refreshToken');
 	const [_, setUserSlug] = useLocalStorage<string>('trakt:userSlug');
 
 	useEffect(() => {
-		if (!token) return;
+		if (!token) {
+			setLoading(false);
+			return;
+		}
 
-		getTraktUser(token)
-			.then((user) => {
-				setUser(user);
-				setUserSlug(user.user.ids.slug);
-			})
-			.catch((e) => setError(e as Error));
-	}, [token]);
+		const auth = async () => {
+			try {
+				const handleTokenRefresh = (newTokens: TraktTokenResponse) => {
+					console.log('Updating Trakt tokens in localStorage');
+					setToken(newTokens.access_token, newTokens.expires_in);
+					// Note: We don't update refresh token here as the new one might be the same
+					// and we don't want to trigger unnecessary re-renders
+				};
 
-	return { user, error, hasAuth: !!token };
+				const userData = await getTraktUserWithRefresh(
+					token,
+					refreshToken || undefined,
+					handleTokenRefresh
+				);
+				setUser(userData);
+				setUserSlug(userData.user.ids.slug);
+				setError(null);
+			} catch (e) {
+				console.error('Trakt authentication failed:', e);
+				setError(e as Error);
+				// Clear tokens on auth failure
+				if ((e as Error).message.includes('Please re-authenticate')) {
+					setToken('');
+					// Don't clear refresh token immediately - user might want to try again
+				}
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		auth();
+	}, [token, refreshToken]);
+
+	return { user, error, loading, hasAuth: !!token };
 };
 
 // Backward compatibility hook for withAuth.tsx
