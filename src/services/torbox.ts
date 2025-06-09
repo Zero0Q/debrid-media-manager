@@ -7,7 +7,7 @@ export type { TorBoxUser };
 const { publicRuntimeConfig: config } = getConfig();
 
 // Constants
-const MIN_REQUEST_INTERVAL = 200; // Increased to 200ms for better rate limiting
+const MIN_REQUEST_INTERVAL = (60 * 1000) / 500;
 const BASE_URL = 'https://api.torbox.app';
 const API_VERSION = 'v1';
 
@@ -19,7 +19,6 @@ function createAxiosClient(token: string): AxiosInstance {
 	if (!axiosInstance) {
 		axiosInstance = axios.create({
 			baseURL: config.torboxHostname || BASE_URL,
-			timeout: parseInt(process.env.REQUEST_TIMEOUT || '30000', 10), // Increased timeout
 		});
 
 		// Rate limiting configuration
@@ -42,57 +41,22 @@ function createAxiosClient(token: string): AxiosInstance {
 			return config;
 		});
 
-		// Add response interceptor for handling 429 errors with exponential backoff
+		// Add response interceptor for handling 429 errors
 		axiosInstance.interceptors.response.use(
 			(response) => response,
 			async (error) => {
-				const originalRequest = error.config;
+				const maxRetries = 10;
+				let retryCount = 0;
 
-				// Don't retry if we've already retried this request
-				if (originalRequest._retry) {
-					throw error;
-				}
-
-				// Handle rate limiting (429) and temporary server errors (503)
-				if (
-					(error.response?.status === 429 || error.response?.status === 503) &&
-					!originalRequest._retry
-				) {
-					originalRequest._retry = true;
-					const maxRetries = 5;
-					let retryCount = originalRequest._retryCount || 0;
-
-					if (retryCount < maxRetries) {
-						originalRequest._retryCount = retryCount + 1;
-
-						// Exponential backoff with jitter
-						const baseDelay = Math.pow(2, retryCount) * 1000;
-						const jitter = Math.random() * 1000;
-						const delay = Math.min(baseDelay + jitter, 30000); // Cap at 30 seconds
-
-						console.log(
-							`TorBox rate limited, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`
-						);
-
-						await new Promise((resolve) => setTimeout(resolve, delay));
-
-						try {
-							return await axiosInstance!.request(originalRequest);
-						} catch (retryError) {
-							// If this was our last retry, throw the original error
-							if (retryCount + 1 >= maxRetries) {
-								throw error;
-							}
-							// Otherwise, let it retry again
-							throw retryError;
-						}
+				while (error.response?.status === 429 && retryCount < maxRetries) {
+					retryCount++;
+					const delay = Math.min(Math.pow(2, retryCount) * 1000, 30000);
+					await new Promise((resolve) => setTimeout(resolve, delay));
+					try {
+						return await axiosInstance!.request(error.config);
+					} catch (retryError) {
+						error = retryError;
 					}
-				}
-
-				// Handle 403 Forbidden errors (likely auth issues)
-				if (error.response?.status === 403) {
-					console.error('TorBox API returned 403 Forbidden. Check API token validity.');
-					throw new Error('TorBox API access forbidden. Please check your API token.');
 				}
 
 				throw error;

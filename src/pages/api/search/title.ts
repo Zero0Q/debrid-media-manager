@@ -226,12 +226,6 @@ const handler: NextApiHandler = async (req, res) => {
 		return;
 	}
 
-	// Check if database is properly configured
-	if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('[YOUR-PASSWORD]')) {
-		console.warn('Database not properly configured - DATABASE_URL contains placeholder');
-		// Still allow search to work without database caching
-	}
-
 	try {
 		const cleanKeyword = keyword
 			.toString()
@@ -241,23 +235,9 @@ const handler: NextApiHandler = async (req, res) => {
 			.join(' ')
 			.trim()
 			.toLowerCase();
-
-		let searchResults: SearchResult[] | null = null;
-
-		// Only try to get cached results if database is properly configured
-		if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('[YOUR-PASSWORD]')) {
-			try {
-				searchResults = await db.getSearchResults<SearchResult[]>(
-					encodeURIComponent(cleanKeyword)
-				);
-			} catch (dbError: any) {
-				console.warn(
-					'Database connection failed for search cache, continuing without cache:',
-					dbError.message
-				);
-			}
-		}
-
+		const searchResults = await db.getSearchResults<SearchResult[]>(
+			encodeURIComponent(cleanKeyword)
+		);
 		if (searchResults) {
 			res.status(200).json({ results: searchResults.filter((r) => r.imdbid) });
 			return;
@@ -352,38 +332,14 @@ const handler: NextApiHandler = async (req, res) => {
 			(r) => r.type === 'movie' || r.type === 'show' || r.type === 'series'
 		);
 
-		// Only try to save results if database is properly configured
 		if (results.length > 0 && results[0].title.toLowerCase().indexOf(searchQuery) >= 0) {
-			if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('[YOUR-PASSWORD]')) {
-				try {
-					await db.saveSearchResults(keyword.toString().trim(), results);
-				} catch (dbError: any) {
-					console.warn(
-						'Failed to save search results to cache, continuing without saving:',
-						dbError.message
-					);
-				}
-			}
+			await db.saveSearchResults(keyword.toString().trim(), results);
 		}
 
 		res.status(200).json({ results });
 	} catch (error: any) {
 		console.error('encountered a search issue', error);
-
-		// Check if it's a database connection error
-		if (
-			error.message?.includes('connect') ||
-			error.message?.includes('database') ||
-			error.message?.includes('password')
-		) {
-			res.status(200).json({
-				results: [],
-				warning:
-					'Database connection failed. Search functionality is limited without database caching.',
-			});
-		} else {
-			res.status(500).json({ status: 'error', errorMessage: error.message });
-		}
+		res.status(500).json({ status: 'error', errorMessage: error.message });
 	}
 };
 

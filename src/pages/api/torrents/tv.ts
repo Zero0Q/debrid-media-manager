@@ -33,17 +33,6 @@ const handler: NextApiHandler = async (req, res) => {
 		return;
 	}
 
-	// Check if database is properly configured
-	if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('[YOUR-PASSWORD]')) {
-		console.warn('Database not properly configured - DATABASE_URL contains placeholder');
-		res.status(200).json({
-			results: [],
-			warning:
-				'Database not configured. Please set a valid DATABASE_URL in your environment variables.',
-		});
-		return;
-	}
-
 	try {
 		const maxSizeInGB = maxSize ? parseInt(maxSize.toString()) : 0;
 		const pageNum = page ? parseInt(page.toString()) : 0;
@@ -83,22 +72,8 @@ const handler: NextApiHandler = async (req, res) => {
 		await db.saveScrapedResults(`requested:${imdbId.toString().trim()}`, []);
 		res.setHeader('status', 'requested').status(204).json(null);
 	} catch (error: any) {
-		console.error('Database connection error:', error);
-
-		// Check if it's a database connection error
-		if (
-			error.message?.includes('connect') ||
-			error.message?.includes('database') ||
-			error.message?.includes('password')
-		) {
-			res.status(200).json({
-				results: [],
-				warning:
-					'Database connection failed. Please check your DATABASE_URL configuration.',
-			});
-		} else {
-			res.status(500).json({ errorMessage: error.message });
-		}
+		console.error('encountered a db issue', error);
+		res.status(500).json({ errorMessage: error.message });
 	}
 };
 

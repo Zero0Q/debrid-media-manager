@@ -18,31 +18,7 @@ const { publicRuntimeConfig: config } = getConfig();
 
 // Function to replace #num# with random number 0-9
 function getProxyUrl(baseUrl: string): string {
-	// Force bypass proxy for Vercel deployments - check multiple conditions
-	const isVercel =
-		typeof window !== 'undefined' &&
-		(window.location.hostname.includes('.vercel.app') ||
-			window.location.hostname.includes('vercel.com') ||
-			!window.location.hostname.includes('debridmediamanager.com'));
-
-	const isProduction = process.env.NODE_ENV === 'production';
-	const hasVercelEnv = process.env.VERCEL_URL || process.env.VERCEL_ENV || process.env.VERCEL;
-	const forceBypass = process.env.BYPASS_PROXY === 'true';
-
-	// Always bypass proxy unless we're specifically on the official domain
-	if (process.env.NODE_ENV === 'development' || forceBypass || hasVercelEnv || isVercel) {
-		console.log('Bypassing proxy - connecting directly to Real-Debrid API');
-		return '';
-	}
-
-	// Only use proxy if we're definitely on the official debridmediamanager.com domain
-	if (typeof window !== 'undefined' && window.location.hostname === 'debridmediamanager.com') {
-		return baseUrl.replace('#num#', Math.floor(Math.random() * 10).toString());
-	}
-
-	// Default to bypassing proxy for safety
-	console.log('Defaulting to bypass proxy for safety');
-	return '';
+	return baseUrl.replace('#num#', Math.floor(Math.random() * 10).toString());
 }
 
 // Validate SHA40 hash format
@@ -53,23 +29,19 @@ function isValidSHA40Hash(hash: string): boolean {
 
 export const getDeviceCode = async () => {
 	try {
-		console.log('getDeviceCode: v2.0 - Using API route /api/realdebrid/device-code');
-		// Use our API route instead of direct Real-Debrid API call
-		const response = await axios.get<DeviceCodeResponse>('/api/realdebrid/device-code');
-		console.log('getDeviceCode: Success!', response.data);
+		const url = `${getProxyUrl(config.proxy)}${config.realDebridHostname}/oauth/v2/device/code?client_id=${config.realDebridClientId}&new_credentials=yes`;
+		const response = await axios.get<DeviceCodeResponse>(url);
 		return response.data;
 	} catch (error: any) {
-		console.error('Error fetching device code from API route:', error.message);
+		console.error('Error fetching device code:', error.message);
 		throw error;
 	}
 };
 
 export const getCredentials = async (deviceCode: string) => {
 	try {
-		// Use our API route instead of direct Real-Debrid API call
-		const response = await axios.get<CredentialsResponse>(
-			`/api/realdebrid/credentials?deviceCode=${deviceCode}`
-		);
+		const url = `${getProxyUrl(config.proxy)}${config.realDebridHostname}/oauth/v2/device/credentials?client_id=${config.realDebridClientId}&code=${deviceCode}`;
+		const response = await axios.get<CredentialsResponse>(url);
 		return response.data;
 	} catch (error: any) {
 		console.error('Error fetching credentials:', error.message);
@@ -84,33 +56,22 @@ export const getToken = async (
 	bare: boolean = false
 ) => {
 	try {
-		if (bare) {
-			// Keep the bare option for direct API calls when needed
-			const params = new URLSearchParams();
-			params.append('client_id', clientId);
-			params.append('client_secret', clientSecret);
-			params.append('code', refreshToken);
-			params.append('grant_type', 'http://oauth.net/grant_type/device/1.0');
+		const params = new URLSearchParams();
+		params.append('client_id', clientId);
+		params.append('client_secret', clientSecret);
+		params.append('code', refreshToken);
+		params.append('grant_type', 'http://oauth.net/grant_type/device/1.0');
 
-			const response = await axios.post<AccessTokenResponse>(
-				'https://api.real-debrid.com/oauth/v2/token',
-				params.toString(),
-				{
-					headers: {
-						'Content-Type': 'application/x-www-form-urlencoded',
-					},
-				}
-			);
-			return response.data;
-		} else {
-			// Use our API route for browser requests
-			const response = await axios.post<AccessTokenResponse>('/api/realdebrid/token', {
-				clientId,
-				clientSecret,
-				refreshToken,
-			});
-			return response.data;
-		}
+		const response = await axios.post<AccessTokenResponse>(
+			`${bare ? 'https://api.real-debrid.com' : getProxyUrl(config.proxy) + config.realDebridHostname}/oauth/v2/token`,
+			params.toString(),
+			{
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+			}
+		);
+		return response.data;
 	} catch (error: any) {
 		console.error('Error fetching access token:', error.message);
 		throw error;
@@ -119,17 +80,13 @@ export const getToken = async (
 
 export const getCurrentUser = async (accessToken: string) => {
 	try {
-		console.log('getCurrentUser: v2.0 - Using API route /api/realdebrid/user');
-		// Use our API route instead of direct Real-Debrid API call
-		const response = await axios.get<UserResponse>('/api/realdebrid/user', {
-			headers: {
-				Authorization: `Bearer ${accessToken}`,
-			},
-		});
-		console.log('getCurrentUser: Success!', response.data);
+		const client = await createAxiosClient(accessToken);
+		const response = await client.get<UserResponse>(
+			`${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/user`
+		);
 		return response.data;
 	} catch (error: any) {
-		console.error('Error fetching user information from API route:', error.message);
+		console.error('Error fetching user information:', error.message);
 		throw error;
 	}
 };
@@ -141,59 +98,29 @@ export async function getUserTorrentsList(
 	bare: boolean = false
 ): Promise<UserTorrentsResult> {
 	try {
-		if (bare) {
-			// Keep the bare option for direct API calls when needed
-			const client = await createAxiosClient(accessToken);
-			const response = await client.get<UserTorrentResponse[]>(
-				`https://api.real-debrid.com/rest/1.0/torrents`,
-				{
-					params: { page, limit },
-				}
-			);
-
-			const {
-				data,
-				headers: { 'x-total-count': totalCount },
-			} = response;
-
-			let totalCountValue: number | null = null;
-			if (totalCount) {
-				totalCountValue = parseInt(totalCount, 10);
-				if (isNaN(totalCountValue)) {
-					totalCountValue = null;
-				}
-			}
-
-			return { data, totalCount: totalCountValue };
-		} else {
-			// Use our API route for browser requests
-			console.log('getUserTorrentsList: v2.0 - Using API route /api/realdebrid/torrents');
-			const response = await axios.get<UserTorrentResponse[]>('/api/realdebrid/torrents', {
-				headers: {
-					Authorization: `Bearer ${accessToken}`,
-				},
+		const client = await createAxiosClient(accessToken);
+		const response = await client.get<UserTorrentResponse[]>(
+			`${bare ? 'https://api.real-debrid.com' : getProxyUrl(config.proxy) + config.realDebridHostname}/rest/1.0/torrents`,
+			{
 				params: { page, limit },
-			});
-
-			const {
-				data,
-				headers: { 'x-total-count': totalCount },
-			} = response;
-
-			let totalCountValue: number | null = null;
-			if (totalCount) {
-				totalCountValue = parseInt(totalCount, 10);
-				if (isNaN(totalCountValue)) {
-					totalCountValue = null;
-				}
 			}
+		);
 
-			console.log('getUserTorrentsList: Success!', {
-				count: data.length,
-				totalCount: totalCountValue,
-			});
-			return { data, totalCount: totalCountValue };
+		const {
+			data,
+			headers: { 'x-total-count': totalCount },
+		} = response;
+
+		// Parse the totalCount from the headers
+		let totalCountValue: number | null = null;
+		if (totalCount) {
+			totalCountValue = parseInt(totalCount, 10);
+			if (isNaN(totalCountValue)) {
+				totalCountValue = null;
+			}
 		}
+
+		return { data, totalCount: totalCountValue };
 	} catch (error: any) {
 		console.error('Error fetching user torrents list:', error.message);
 		throw error;
@@ -230,9 +157,8 @@ export const rdInstantCheck = async (
 		}
 
 		const client = await createAxiosClient(accessToken);
-		const proxyUrl = getProxyUrl(config.proxy);
 		const response = await client.get<RdInstantAvailabilityResponse>(
-			`${proxyUrl}${config.realDebridHostname}/rest/1.0/torrents/instantAvailability/${validHashes.join('/')}`
+			`${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/torrents/instantAvailability/${validHashes.join('/')}`
 		);
 		return response.data;
 	} catch (error: any) {
@@ -322,9 +248,8 @@ export const deleteTorrent = async (
 export const deleteDownload = async (accessToken: string, id: string): Promise<void> => {
 	try {
 		const client = await createAxiosClient(accessToken);
-		const proxyUrl = getProxyUrl(config.proxy);
 		await client.delete(
-			`${proxyUrl}${config.realDebridHostname}/rest/1.0/downloads/delete/${id}`
+			`${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/downloads/delete/${id}`
 		);
 	} catch (error: any) {
 		console.error('Error deleting download:', error.message);
@@ -394,13 +319,12 @@ export const proxyUnrestrictLink = async (
 
 export const getTimeISO = async (): Promise<string> => {
 	try {
-		console.log('getTimeISO: v2.0 - Using API route /api/realdebrid/time');
-		// Use our API route instead of direct Real-Debrid API call
-		const response = await axios.get<string>('/api/realdebrid/time');
-		console.log('getTimeISO: Success!', response.data);
+		const response = await axios.get<string>(
+			`${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/time/iso`
+		);
 		return response.data;
 	} catch (error: any) {
-		console.error('Error fetching time from API route:', error.message);
+		console.error('Error fetching time:', error.message);
 		throw error;
 	}
 };
@@ -413,7 +337,6 @@ function createAxiosClient(token: string): AxiosInstance {
 		headers: {
 			Authorization: `Bearer ${token}`,
 		},
-		timeout: parseInt(process.env.REQUEST_TIMEOUT || '10000', 10), // Add proper timeout
 	});
 
 	// Rate limiting configuration

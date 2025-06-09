@@ -1,32 +1,20 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
-// Function to get deterministic poster subdomain based on imdbId to prevent hydration mismatch
+// Function to get random poster subdomain
 const getPosterUrl = (imdbId: string): string => {
-	// Use a deterministic hash instead of random to ensure server/client consistency
-	let hash = 0;
-	for (let i = 0; i < imdbId.length; i++) {
-		const char = imdbId.charCodeAt(i);
-		hash = (hash << 5) - hash + char;
-		hash = hash & hash; // Convert to 32bit integer
-	}
-	const subdomainNum = Math.abs(hash) % 10;
-	return `https://posters${subdomainNum}.debridmediamanager.com/${imdbId}-small.jpg`;
+	const randomNum = Math.floor(Math.random() * 10);
+	return `https://posters${randomNum}.debridmediamanager.com/${imdbId}-small.jpg`;
 };
 
 const Poster = ({ imdbId, title = 'No poster' }: Record<string, string>) => {
-	const [posterUrl, setPosterUrl] = useState(() => {
-		// Initialize with deterministic URL to prevent hydration mismatch
-		return imdbId ? getPosterUrl(imdbId) : '';
-	});
+	const [posterUrl, setPosterUrl] = useState('');
 	const [fallbackAttempted, setFallbackAttempted] = useState(false);
 
 	useEffect(() => {
-		// Only update if imdbId changes
-		if (imdbId) {
-			setPosterUrl(getPosterUrl(imdbId));
-			setFallbackAttempted(false);
-		}
+		// Use random poster subdomain
+		setPosterUrl(getPosterUrl(imdbId));
+		setFallbackAttempted(false);
 	}, [imdbId]);
 
 	const handleImageError = async () => {

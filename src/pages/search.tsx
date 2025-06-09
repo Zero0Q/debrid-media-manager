@@ -48,8 +48,11 @@ function Search() {
 
 	const fetchMiscData = async (q: string) => {
 		try {
-			// Always use local API for search/misc
-			const endpoint = `/api/search/misc?keyword=${q}`;
+			let path = `api/search/misc?keyword=${q}`;
+			if (config.externalSearchApiHostname) {
+				path = encodeURIComponent(path);
+			}
+			let endpoint = `${config.externalSearchApiHostname || ''}/${path}`;
 			const res = await fetch(endpoint);
 			const data = await res.json();
 			if (Object.keys(data).length > 0) setMiscResults(data);
@@ -65,8 +68,11 @@ function Search() {
 		setLoading(true);
 		setSearchResults([]);
 		try {
-			// Always use local API for search/title
-			const endpoint = `/api/search/title?keyword=${q}`;
+			let path = `api/search/title?keyword=${q}`;
+			if (config.externalSearchApiHostname) {
+				path = encodeURIComponent(path);
+			}
+			let endpoint = `${config.externalSearchApiHostname || ''}/${path}`;
 			const res = await fetch(endpoint);
 			const data = await res.json();
 			if (data.errorMessage) throw new Error(data.errorMessage);

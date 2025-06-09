@@ -40,11 +40,10 @@ const updateTorrentTitle = (torrent: SearchResult, files: FileData[]) => {
 	}
 };
 
-// Rate limiting for RD requests
-let rdRequestTimestamps: number[] = [];
-const MAX_REQUESTS = 5; // Reduced from 10 to 5 requests
-const TIME_WINDOW = 15000; // Increased from 10 to 15 seconds
-const MIN_REQUEST_INTERVAL = 500; // Increased from 250ms to 500ms between requests
+// Rate limiter for RD requests - 10 requests per 10 seconds
+const rdRequestTimestamps: number[] = [];
+const MAX_REQUESTS = 10;
+const TIME_WINDOW = 10000; // 10 seconds in milliseconds
 
 async function waitForRateLimit() {
 	const now = Date.now();
@@ -58,26 +57,13 @@ async function waitForRateLimit() {
 		const oldestTimestamp = rdRequestTimestamps[0];
 		const waitTime = oldestTimestamp + TIME_WINDOW - now;
 		if (waitTime > 0) {
-			console.log(
-				`Rate limit reached, waiting ${Math.ceil(waitTime / 1000)}s before next request`
-			);
 			await new Promise((resolve) => setTimeout(resolve, waitTime));
 			return waitForRateLimit(); // Recheck after waiting
 		}
 	}
 
-	// Ensure minimum interval between requests
-	if (rdRequestTimestamps.length > 0) {
-		const lastRequest = rdRequestTimestamps[rdRequestTimestamps.length - 1];
-		const timeSinceLastRequest = now - lastRequest;
-		if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
-			const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
-			await new Promise((resolve) => setTimeout(resolve, waitTime));
-		}
-	}
-
 	// Add current timestamp
-	rdRequestTimestamps.push(Date.now());
+	rdRequestTimestamps.push(now);
 }
 
 // Generic RD instant check function without IMDB constraint
@@ -140,7 +126,7 @@ const processRdInstantCheckByHashes = async <T extends SearchResult | EnrichedHa
 			});
 		});
 	}
-	await runConcurrentFunctions(funcs, 2, 0); // Reduced from 4 to 2
+	await runConcurrentFunctions(funcs, 4, 0);
 	return instantCount;
 };
 
@@ -205,7 +191,7 @@ const processRdInstantCheck = async <T extends SearchResult | EnrichedHashlistTo
 			});
 		});
 	}
-	await runConcurrentFunctions(funcs, 2, 0); // Reduced from 4 to 2
+	await runConcurrentFunctions(funcs, 4, 0);
 	return instantCount;
 };
 
@@ -275,7 +261,7 @@ const processAdInstantCheck = async <T extends SearchResult | EnrichedHashlistTo
 			});
 		});
 	}
-	await runConcurrentFunctions(funcs, 2, 0); // Reduced from 4 to 2
+	await runConcurrentFunctions(funcs, 4, 0);
 	return instantCount;
 };
 
@@ -299,7 +285,7 @@ export const instantCheckInRd = (
 	hashes: string[],
 	setTorrentList: Dispatch<SetStateAction<SearchResult[]>>,
 	sortFn: (searchResults: SearchResult[]) => SearchResult[]
-) => processRdInstantCheck(dmmProblemKey, solution, imdbId, hashes, 10, setTorrentList, sortFn); // Reduced from 20 to 10
+) => processRdInstantCheck(dmmProblemKey, solution, imdbId, hashes, 20, setTorrentList, sortFn);
 
 export const instantCheckAnimeInRd = (
 	dmmProblemKey: string,
@@ -308,7 +294,7 @@ export const instantCheckAnimeInRd = (
 	hashes: string[],
 	setTorrentList: Dispatch<SetStateAction<SearchResult[]>>,
 	sortFn: (searchResults: SearchResult[]) => SearchResult[]
-) => processRdInstantCheck(dmmProblemKey, solution, '', hashes, 10, setTorrentList, sortFn, true); // Reduced from 20 to 10
+) => processRdInstantCheck(dmmProblemKey, solution, '', hashes, 20, setTorrentList, sortFn, true);
 
 export const instantCheckInRd2 = (
 	dmmProblemKey: string,
@@ -316,7 +302,7 @@ export const instantCheckInRd2 = (
 	rdKey: string,
 	hashes: string[],
 	setTorrentList: Dispatch<SetStateAction<EnrichedHashlistTorrent[]>>
-) => processRdInstantCheckByHashes(dmmProblemKey, solution, hashes, 10, setTorrentList); // Reduced from 20 to 10
+) => processRdInstantCheckByHashes(dmmProblemKey, solution, hashes, 20, setTorrentList);
 
 export const instantCheckInAd = (
 	adKey: string,

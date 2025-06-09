@@ -105,28 +105,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 		return res.status(400).json({ error: 'Browse parameter is required' });
 	}
 
-	// Check if Trakt is properly configured
-	if (!traktClientID || traktClientID === 'abc123' || traktClientID.length < 10) {
-		console.warn('Trakt API not configured or using placeholder client ID');
-		return res.status(200).json({
-			mediaType: browse.toLowerCase() === 'shows' ? 'show' : 'movie',
-			categories: [],
-			warning:
-				'Trakt functionality is not configured. Please set a valid TRAKT_CLIENT_ID in your environment variables.',
-		});
-	}
-
-	// Check if database is properly configured
-	if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('[YOUR-PASSWORD]')) {
-		console.warn('Database not properly configured - DATABASE_URL contains placeholder');
-		return res.status(200).json({
-			mediaType: browse.toLowerCase() === 'shows' ? 'show' : 'movie',
-			categories: [],
-			warning:
-				'Database not configured. Please set a valid DATABASE_URL in your environment variables.',
-		});
-	}
-
 	let mediaType = browse.toLowerCase() === 'shows' ? 'show' : 'movie';
 	const categories: { name: string; results: Record<string, TraktMediaItem[]> }[] = [];
 
@@ -161,39 +139,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 					categoryResults[key] = responseCache[endpoint].results;
 				} catch (error: any) {
 					console.error(`Error fetching ${endpoint}:`, error);
-
-					// Check if it's a database connection error
-					if (
-						error.message?.includes('connect') ||
-						error.message?.includes('database') ||
-						error.message?.includes('password')
-					) {
-						console.warn(
-							'Database connection failed, fetching fresh data from Trakt API'
-						);
-						try {
-							const searchResults = await getMediaData(traktClientID!, endpoint);
-							responseCache[endpoint] = {
-								lastUpdated: new Date().getTime(),
-								results: searchResults,
-							};
-							categoryResults[key] = responseCache[endpoint].results;
-							continue;
-						} catch (traktError: any) {
-							console.error(`Failed to fetch from Trakt API: ${traktError.message}`);
-							continue;
-						}
-					}
-
-					// If it's an authentication error, break out of the loop
-					if (error.response?.status === 401 || error.response?.status === 403) {
-						console.error('Trakt API authentication failed - invalid client ID');
-						return res.status(200).json({
-							mediaType,
-							categories: [],
-							error: 'Trakt API authentication failed. Please check your TRAKT_CLIENT_ID configuration.',
-						});
-					}
 					continue;
 				}
 			}
@@ -210,23 +155,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 			mediaType,
 			categories,
 		});
-	} catch (error: any) {
+	} catch (error) {
 		console.error('Error in trakt info handler:', error);
-
-		// Check if it's a database connection error
-		if (
-			error.message?.includes('connect') ||
-			error.message?.includes('database') ||
-			error.message?.includes('password')
-		) {
-			res.status(200).json({
-				mediaType: browse.toLowerCase() === 'shows' ? 'show' : 'movie',
-				categories: [],
-				warning:
-					'Database connection failed. Please check your DATABASE_URL configuration.',
-			});
-		} else {
-			res.status(500).json({ error: 'Failed to fetch trakt information' });
-		}
+		res.status(500).json({ error: 'Failed to fetch trakt information' });
 	}
 }
