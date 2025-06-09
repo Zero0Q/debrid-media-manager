@@ -4,6 +4,14 @@ import fs from 'fs';
 import ptt from 'parse-torrent-title';
 import { cleanSearchQuery, liteCleanSearchQuery } from './search';
 
+/**
+ * Utility function to check if code is running in a browser environment
+ * Used by proxy-related code to determine whether to use client-side or server-side logic
+ */
+export function isBrowser(): boolean {
+	return typeof window !== 'undefined';
+}
+
 let dictionary: Set<string>;
 try {
 	let data = fs.readFileSync('./wordlist.txt', 'utf8');
