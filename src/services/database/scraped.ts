@@ -17,10 +17,10 @@ export class ScrapedService extends DatabaseClient {
 		const offset = page * 50;
 
 		try {
-			// First check if the key exists
+			// First check if the key exists - using key field instead of id
 			const recordExists = await this.prisma.scrapedTrue.findUnique({
 				where: { key },
-				select: { id: true },
+				select: { key: true },
 			});
 
 			if (!recordExists) {
@@ -94,10 +94,10 @@ export class ScrapedService extends DatabaseClient {
 		const offset = page * 50;
 
 		try {
-			// First check if the key exists
+			// First check if the key exists - using key field instead of id
 			const recordExists = await this.prisma.scraped.findUnique({
 				where: { key },
-				select: { id: true },
+				select: { key: true },
 			});
 
 			if (!recordExists) {
