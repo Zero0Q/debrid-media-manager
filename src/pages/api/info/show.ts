@@ -14,6 +14,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 		return res.status(400).json({ error: 'IMDB ID is required' });
 	}
 
+	// Check if MDBList is properly configured
+	if (
+		!process.env.MDBLIST_KEY ||
+		process.env.MDBLIST_KEY === 'abc123' ||
+		process.env.MDBLIST_KEY.length < 10
+	) {
+		console.warn('MDBList API not configured or using placeholder key');
+		return res.status(200).json({
+			title: 'Unknown',
+			description:
+				'MDBList functionality is not configured. Please set a valid MDBLIST_KEY in your environment variables.',
+			poster: '',
+			backdrop: 'https://source.unsplash.com/random/1800x300?media',
+			season_count: 1,
+			season_names: ['Season 1'],
+			imdb_score: 0,
+			season_episode_counts: { 1: 1 },
+			warning: 'MDBList API not configured',
+		});
+	}
+
 	try {
 		const mdblistClient = getMdblistClient();
 		const mdbPromise = mdblistClient.getInfoByImdbId(imdbid);
