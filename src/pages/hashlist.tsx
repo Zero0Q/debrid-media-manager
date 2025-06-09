@@ -378,13 +378,13 @@ function HashlistPage() {
 	async function loadAllHashLists() {
 		try {
 			setAllHashLists(true);
-			const response = await fetch('https://hashlists.debridmediamanager.com/api/lists');
+			const response = await fetch('https://zero0q.github.io/hashlists/api/lists');
 			const lists = await response.json();
 
 			const allTorrents: EnrichedHashlistTorrent[] = [];
 			for (const list of lists) {
 				const response = await fetch(
-					`https://hashlists.debridmediamanager.com/api/list/${list.id}`
+					`https://zero0q.github.io/hashlists/api/list/${list.id}`
 				);
 				const torrents = await response.json();
 

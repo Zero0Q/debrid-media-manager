@@ -3,7 +3,7 @@ import { Octokit } from '@octokit/rest';
 import { NextApiRequest, NextApiResponse } from 'next';
 import { v4 as uuidv4 } from 'uuid';
 
-const OWNER = 'debridmediamanager';
+const OWNER = 'Zero0Q';
 const REPO = 'hashlists';
 const REF = 'heads/main';
 
@@ -91,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 			sha: commitData.sha,
 		});
 
-		res.status(200).json({ shortUrl: `https://hashlists.debridmediamanager.com/${uuid}.html` });
+		res.status(200).json({ shortUrl: `https://zero0q.github.io/hashlists/${uuid}.html` });
 	} catch (error) {
 		console.error(error);
 		res.status(500).send('Error adding file to GitHub repository');

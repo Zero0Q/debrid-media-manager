@@ -16,7 +16,7 @@ export function MainActions({ rdUser, isLoading }: MainActionsProps) {
 				📚 Library
 			</Link>
 			<Link
-				href="https://hashlists.debridmediamanager.com"
+				href="https://zero0q.github.io/hashlists"
 				target="_blank"
 				className="haptic flex items-center justify-center gap-2 rounded border-2 border-indigo-500 bg-indigo-900/30 p-3 text-indigo-100 transition-colors hover:bg-indigo-800/50"
 			>
