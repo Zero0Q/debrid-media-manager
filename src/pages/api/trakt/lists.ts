@@ -1,6 +1,37 @@
 import axios from 'axios';
 import { NextApiRequest, NextApiResponse } from 'next';
 
+interface TraktList {
+	name: string;
+	description: string;
+	privacy: string;
+	share_link: string;
+	type: string;
+	display_numbers: boolean;
+	allow_comments: boolean;
+	sort_by: string;
+	sort_how: string;
+	created_at: string;
+	updated_at: string;
+	item_count: number;
+	comment_count: number;
+	likes: number;
+	ids: {
+		trakt: number;
+		slug: string;
+	};
+	user: {
+		username: string;
+		private: boolean;
+		name: string;
+		vip: boolean;
+		vip_ep: boolean;
+		ids: {
+			slug: string;
+		};
+	};
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
 	if (req.method !== 'GET') {
 		return res.status(405).json({ error: 'Method not allowed' });
@@ -27,10 +58,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 		const url = `https://api.trakt.tv/users/${userSlug}/lists`;
 		let page = 1;
 		const limit = 100;
-		let allLists = [];
+		let allLists: TraktList[] = [];
 
 		while (true) {
-			const response = await axios.get(url, {
+			const response = await axios.get<TraktList[]>(url, {
 				headers: {
 					'Content-Type': 'application/json',
 					Authorization: `Bearer ${accessToken}`,

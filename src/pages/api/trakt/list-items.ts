@@ -1,6 +1,31 @@
 import axios from 'axios';
 import { NextApiRequest, NextApiResponse } from 'next';
 
+interface TraktMediaItem {
+	movie?: {
+		title: string;
+		year: number;
+		ids: {
+			trakt: number;
+			slug: string;
+			tvdb?: number;
+			imdb?: string;
+			tmdb: number;
+		};
+	};
+	show?: {
+		title: string;
+		year: number;
+		ids: {
+			trakt: number;
+			slug: string;
+			tvdb?: number;
+			imdb?: string;
+			tmdb: number;
+		};
+	};
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
 	if (req.method !== 'GET') {
 		return res.status(405).json({ error: 'Method not allowed' });
@@ -35,10 +60,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 		let page = 1;
 		const limit = 100;
-		let allItems = [];
+		let allItems: TraktMediaItem[] = [];
 
 		while (true) {
-			const response = await axios.get(apiEndpoint, {
+			const response = await axios.get<TraktMediaItem[]>(apiEndpoint, {
 				headers: {
 					'Content-Type': 'application/json',
 					Authorization: `Bearer ${accessToken}`,
