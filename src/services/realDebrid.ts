@@ -18,26 +18,31 @@ const { publicRuntimeConfig: config } = getConfig();
 
 // Function to replace #num# with random number 0-9
 function getProxyUrl(baseUrl: string): string {
-	// Force bypass proxy if environment variable is set
-	if (process.env.BYPASS_PROXY === 'true' || process.env.NODE_ENV === 'development') {
+	// Force bypass proxy for Vercel deployments - check multiple conditions
+	const isVercel =
+		typeof window !== 'undefined' &&
+		(window.location.hostname.includes('.vercel.app') ||
+			window.location.hostname.includes('vercel.com') ||
+			!window.location.hostname.includes('debridmediamanager.com'));
+
+	const isProduction = process.env.NODE_ENV === 'production';
+	const hasVercelEnv = process.env.VERCEL_URL || process.env.VERCEL_ENV || process.env.VERCEL;
+	const forceBypass = process.env.BYPASS_PROXY === 'true';
+
+	// Always bypass proxy unless we're specifically on the official domain
+	if (process.env.NODE_ENV === 'development' || forceBypass || hasVercelEnv || isVercel) {
+		console.log('Bypassing proxy - connecting directly to Real-Debrid API');
 		return '';
 	}
 
-	// Always bypass proxy for any domain that's not the official debridmediamanager.com
-	// This includes Vercel deployments, local development, and any other custom domains
-	if (typeof window !== 'undefined') {
-		const hostname = window.location.hostname;
-		if (!hostname.includes('debridmediamanager.com')) {
-			return '';
-		}
+	// Only use proxy if we're definitely on the official debridmediamanager.com domain
+	if (typeof window !== 'undefined' && window.location.hostname === 'debridmediamanager.com') {
+		return baseUrl.replace('#num#', Math.floor(Math.random() * 10).toString());
 	}
 
-	// Also check server-side environment for Vercel
-	if (process.env.VERCEL_URL || process.env.VERCEL_ENV) {
-		return '';
-	}
-
-	return baseUrl.replace('#num#', Math.floor(Math.random() * 10).toString());
+	// Default to bypassing proxy for safety
+	console.log('Defaulting to bypass proxy for safety');
+	return '';
 }
 
 // Validate SHA40 hash format
