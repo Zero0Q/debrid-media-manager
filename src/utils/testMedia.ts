@@ -6,7 +6,6 @@
  */
 
 const axios = require('axios');
-const crypto = require('crypto');
 
 // Create an axios instance with a base URL
 const apiClient = axios.create({

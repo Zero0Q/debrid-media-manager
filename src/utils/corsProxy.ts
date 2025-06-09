@@ -8,6 +8,9 @@
  */
 
 import axios from 'axios';
+import getConfig from 'next/config';
+
+const { publicRuntimeConfig } = getConfig();
 
 /**
  * Makes a request through the appropriate CORS proxy based on the environment and needs
@@ -105,7 +108,9 @@ export function createCorsProxyAxios(baseURL?: string, defaultOptions: any = {})
 	return instance;
 }
 
-export default {
+const corsProxyHandler = {
 	fetchWithCorsProxy,
 	createCorsProxyAxios,
 };
+
+export default corsProxyHandler;

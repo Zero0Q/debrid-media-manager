@@ -92,7 +92,7 @@ const useRealDebrid = () => {
 const useAllDebrid = () => {
 	const [user, setUser] = useState<AllDebridUser | null>(null);
 	const [error, setError] = useState<Error | null>(null);
-	const [token] = useLocalStorage<string>('ad:apiKey');
+	const [token, setToken] = useLocalStorage<string>('ad:apiKey');
 
 	useEffect(() => {
 		if (!token) return;
@@ -100,7 +100,7 @@ const useAllDebrid = () => {
 		getAllDebridUser(token)
 			.then((user) => setUser(user as AllDebridUser))
 			.catch((e) => setError(e as Error));
-	}, [token]);
+	}, [token, setToken]); // Added setToken to dependency array
 
 	return { user, error, hasAuth: !!token };
 };

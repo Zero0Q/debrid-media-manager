@@ -129,6 +129,11 @@ const TvSearch: FunctionComponent = () => {
 		initialize();
 	}, [imdbid, seasonNum, isLoading]);
 
+	useEffect(() => {
+		if (!imdbid || !isReady) return;
+		initialize();
+	}, [imdbid, isReady, initialize, defaultTorrentsFilter]);
+
 	async function fetchData(imdbId: string, seasonNum: number, page: number = 0) {
 		const [tokenWithTimestamp, tokenHash] = await generateTokenAndHash();
 		if (page === 0) {
