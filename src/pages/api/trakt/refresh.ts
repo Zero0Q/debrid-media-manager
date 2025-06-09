@@ -12,14 +12,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 		return;
 	}
 
+	// Check if environment variables are available
+	const clientId = process.env.TRAKT_CLIENT_ID;
+	const clientSecret = process.env.TRAKT_CLIENT_SECRET;
+
+	if (!clientId || !clientSecret) {
+		console.error('Missing Trakt environment variables:', {
+			hasClientId: !!clientId,
+			hasClientSecret: !!clientSecret,
+		});
+		res.status(500).json({
+			errorMessage: 'Server configuration error: Missing Trakt credentials',
+		});
+		return;
+	}
+
 	try {
 		const requestBody = {
 			refresh_token,
-			client_id: process.env.TRAKT_CLIENT_ID,
-			client_secret: process.env.TRAKT_CLIENT_SECRET,
+			client_id: clientId,
+			client_secret: clientSecret,
 			redirect_uri: '',
 			grant_type: 'refresh_token',
 		};
+
+		console.log('Attempting to refresh Trakt token...');
 
 		const response = await fetch('https://api.trakt.tv/oauth/token', {
 			method: 'POST',
@@ -32,11 +49,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 		const data = await response.json();
 
 		if (!response.ok) {
-			console.error('Trakt token refresh failed:', data);
+			console.error('Trakt token refresh failed:', {
+				status: response.status,
+				statusText: response.statusText,
+				data: data,
+			});
 			res.status(response.status).json(data);
 			return;
 		}
 
+		console.log('Trakt token refresh successful');
 		res.status(200).json(data);
 	} catch (error) {
 		console.error('Error in token refresh endpoint:', error);

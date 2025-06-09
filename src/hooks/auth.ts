@@ -126,7 +126,7 @@ const useTrakt = () => {
 	const [error, setError] = useState<Error | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [token, setToken] = useLocalStorage<string>('trakt:accessToken');
-	const [refreshToken] = useLocalStorage<string>('trakt:refreshToken');
+	const [refreshToken, setRefreshToken] = useLocalStorage<string>('trakt:refreshToken');
 	const [_, setUserSlug] = useLocalStorage<string>('trakt:userSlug');
 
 	useEffect(() => {
@@ -140,8 +140,11 @@ const useTrakt = () => {
 				const handleTokenRefresh = (newTokens: TraktTokenResponse) => {
 					console.log('Updating Trakt tokens in localStorage');
 					setToken(newTokens.access_token, newTokens.expires_in);
-					// Note: We don't update refresh token here as the new one might be the same
-					// and we don't want to trigger unnecessary re-renders
+					// CRITICAL FIX: Always update the refresh token when provided
+					if (newTokens.refresh_token) {
+						setRefreshToken(newTokens.refresh_token);
+						console.log('Updated refresh token in localStorage');
+					}
 				};
 
 				const userData = await getTraktUserWithRefresh(
