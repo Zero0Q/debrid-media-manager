@@ -18,6 +18,10 @@ const { publicRuntimeConfig: config } = getConfig();
 
 // Function to replace #num# with random number 0-9
 function getProxyUrl(baseUrl: string): string {
+	// In development, don't use proxy - connect directly to Real-Debrid API
+	if (process.env.NODE_ENV === 'development') {
+		return '';
+	}
 	return baseUrl.replace('#num#', Math.floor(Math.random() * 10).toString());
 }
 
@@ -29,7 +33,8 @@ function isValidSHA40Hash(hash: string): boolean {
 
 export const getDeviceCode = async () => {
 	try {
-		const url = `${getProxyUrl(config.proxy)}${config.realDebridHostname}/oauth/v2/device/code?client_id=${config.realDebridClientId}&new_credentials=yes`;
+		const proxyUrl = getProxyUrl(config.proxy);
+		const url = `${proxyUrl}${config.realDebridHostname}/oauth/v2/device/code?client_id=${config.realDebridClientId}&new_credentials=yes`;
 		const response = await axios.get<DeviceCodeResponse>(url);
 		return response.data;
 	} catch (error: any) {
@@ -40,7 +45,8 @@ export const getDeviceCode = async () => {
 
 export const getCredentials = async (deviceCode: string) => {
 	try {
-		const url = `${getProxyUrl(config.proxy)}${config.realDebridHostname}/oauth/v2/device/credentials?client_id=${config.realDebridClientId}&code=${deviceCode}`;
+		const proxyUrl = getProxyUrl(config.proxy);
+		const url = `${proxyUrl}${config.realDebridHostname}/oauth/v2/device/credentials?client_id=${config.realDebridClientId}&code=${deviceCode}`;
 		const response = await axios.get<CredentialsResponse>(url);
 		return response.data;
 	} catch (error: any) {
@@ -81,8 +87,9 @@ export const getToken = async (
 export const getCurrentUser = async (accessToken: string) => {
 	try {
 		const client = await createAxiosClient(accessToken);
+		const proxyUrl = getProxyUrl(config.proxy);
 		const response = await client.get<UserResponse>(
-			`${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/user`
+			`${proxyUrl}${config.realDebridHostname}/rest/1.0/user`
 		);
 		return response.data;
 	} catch (error: any) {
@@ -157,8 +164,9 @@ export const rdInstantCheck = async (
 		}
 
 		const client = await createAxiosClient(accessToken);
+		const proxyUrl = getProxyUrl(config.proxy);
 		const response = await client.get<RdInstantAvailabilityResponse>(
-			`${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/torrents/instantAvailability/${validHashes.join('/')}`
+			`${proxyUrl}${config.realDebridHostname}/rest/1.0/torrents/instantAvailability/${validHashes.join('/')}`
 		);
 		return response.data;
 	} catch (error: any) {
@@ -248,8 +256,9 @@ export const deleteTorrent = async (
 export const deleteDownload = async (accessToken: string, id: string): Promise<void> => {
 	try {
 		const client = await createAxiosClient(accessToken);
+		const proxyUrl = getProxyUrl(config.proxy);
 		await client.delete(
-			`${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/downloads/delete/${id}`
+			`${proxyUrl}${config.realDebridHostname}/rest/1.0/downloads/delete/${id}`
 		);
 	} catch (error: any) {
 		console.error('Error deleting download:', error.message);
@@ -319,8 +328,9 @@ export const proxyUnrestrictLink = async (
 
 export const getTimeISO = async (): Promise<string> => {
 	try {
+		const proxyUrl = getProxyUrl(config.proxy);
 		const response = await axios.get<string>(
-			`${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/time/iso`
+			`${proxyUrl}${config.realDebridHostname}/rest/1.0/time/iso`
 		);
 		return response.data;
 	} catch (error: any) {

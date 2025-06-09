@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider     = "mysql"
-  url          = env("DATABASE_URL")
-  relationMode = "prisma"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Cache {
@@ -37,7 +36,7 @@ model Cast {
   imdbId    String
   userId    String
   hash      String
-  url       String   @db.Text
+  url       String
   updatedAt DateTime @updatedAt
   size      BigInt   @default(0)
   link      String?
@@ -74,7 +73,7 @@ model Anime {
   title           String
   type            String
   aliases         Json
-  description     String  @db.Text
+  description     String
   poster_url      String
   background_url  String
   rating          Float
@@ -109,7 +108,7 @@ model AvailableFile {
   link      String    @id
   file_id   Int
   hash      String
-  path      String    @db.Text
+  path      String
   bytes     BigInt
   available Available @relation(fields: [hash], references: [hash], onDelete: Cascade)
 
