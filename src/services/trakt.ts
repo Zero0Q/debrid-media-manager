@@ -257,7 +257,12 @@ export const refreshTraktToken = async (refreshToken: string): Promise<TraktToke
 			grant_type: 'refresh_token',
 		};
 
-		const response = await fetch('https://api.trakt.tv/oauth/token', {
+		// Use the same proxy approach as other Trakt API calls
+		const tokenUrl = isProduction
+			? `/api/localproxy?url=${encodeURIComponent('https://api.trakt.tv/oauth/token')}`
+			: 'https://api.trakt.tv/oauth/token';
+
+		const response = await fetch(tokenUrl, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
