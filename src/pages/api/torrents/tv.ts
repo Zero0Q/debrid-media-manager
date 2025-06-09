@@ -36,7 +36,8 @@ const handler: NextApiHandler = async (req, res) => {
 	try {
 		const maxSizeInGB = maxSize ? parseInt(maxSize.toString()) : 0;
 		const pageNum = page ? parseInt(page.toString()) : 0;
-		const tvKey = `tv:${imdbId.toString().trim()}:${parseInt(seasonNum.toString().trim(), 10)}`;
+		const imdbIdString = imdbId.toString().trim();
+		const tvKey = `tv:${imdbIdString}:${parseInt(seasonNum.toString().trim(), 10)}`;
 
 		// Check if the keys exist before trying to query them to avoid errors
 		const scrapedTrueExists = await db.keyExistsInScrapedTrue(tvKey);
@@ -71,19 +72,21 @@ const handler: NextApiHandler = async (req, res) => {
 				? sortByFileSize(flattenAndRemoveDuplicates(searchResults))
 				: [];
 
-		res.status(200).json({ results: processedResults });
-		return;
+		// Check if we need to mark as processing or requested
+		if (processedResults.length === 0) {
+			const isProcessing = await db.keyExists(`processing:${imdbIdString}`);
+			if (isProcessing) {
+				res.setHeader('status', 'processing').status(204).json(null);
+				return;
+			}
 
-		// The rest of the function for checking processing status and marking as requested
-		// only runs if we didn't have any results to return
-		const isProcessing = await db.keyExists(`processing:${imdbId.toString().trim()}`);
-		if (isProcessing) {
-			res.setHeader('status', 'processing').status(204).json(null);
+			await db.saveScrapedResults(`requested:${imdbIdString}`, []);
+			res.setHeader('status', 'requested').status(204).json(null);
 			return;
 		}
 
-		await db.saveScrapedResults(`requested:${imdbId.toString().trim()}`, []);
-		res.setHeader('status', 'requested').status(204).json(null);
+		// Return the results if we found some
+		res.status(200).json({ results: processedResults });
 	} catch (error: any) {
 		console.error('encountered a db issue', error);
 		res.status(500).json({ errorMessage: error.message });
