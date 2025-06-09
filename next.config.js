@@ -2,11 +2,10 @@
 
 const nextConfig = {
 	output: 'standalone',
-	// Enable build cache
 	experimental: {
-		turbotrace: {
-			logLevel: 'error'
-		},
+		// Remove turbotrace as it might cause build hangs
+		optimizeCss: true, // Enable CSS optimization
+		legacyBrowsers: false, // Disable legacy browser support for better performance
 	},
 	// Configure build cache options
 	onDemandEntries: {
@@ -98,7 +97,13 @@ const nextConfig = {
 		discordClientId: process.env.DISCORD_CLIENT_ID,
 	},
 	webpack: (config) => {
-		config.cache = false;
+		// Enable webpack caching for faster builds
+		config.cache = {
+			type: 'filesystem',
+			buildDependencies: {
+				config: [__filename]
+			}
+		};
 		return config;
 	},
 };

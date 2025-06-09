@@ -2,10 +2,22 @@ import axios from 'axios';
 import getConfig from 'next/config';
 import { isBrowser } from '../utils/checks';
 
-const { publicRuntimeConfig: config } = getConfig();
+const getConfiguration = () => {
+	try {
+		const { publicRuntimeConfig } = getConfig();
+		return publicRuntimeConfig;
+	} catch (error) {
+		return {
+			allDebridHostname:
+				process.env.NEXT_PUBLIC_ALLDEBRID_HOSTNAME || 'https://api.alldebrid.com',
+			allDebridAgent: process.env.NEXT_PUBLIC_ALLDEBRID_AGENT || 'debridMediaManager',
+		};
+	}
+};
 
 // Use local proxy in production environment or direct API in development
 const getAllDebridApiUrl = () => {
+	const config = getConfiguration();
 	if (isBrowser() && process.env.NODE_ENV === 'production') {
 		return '/api/localproxy?url=' + config.allDebridHostname;
 	}
@@ -25,6 +37,7 @@ interface PinResponse {
 }
 
 export const getPin = async () => {
+	const config = getConfiguration();
 	try {
 		let endpoint = `${getAllDebridApiUrl()}/v4/pin/get?agent=${config.allDebridAgent}`;
 		const response = await axios.get<PinResponse>(endpoint);
@@ -45,6 +58,7 @@ interface PinCheckResponse {
 }
 
 export const checkPin = async (pin: string, check: string) => {
+	const config = getConfiguration();
 	let endpoint = `${getAllDebridApiUrl()}/v4/pin/check?agent=${config.allDebridAgent}&check=${check}&pin=${pin}`;
 	try {
 		let pinCheck = await axios.get<PinCheckResponse>(endpoint);
@@ -82,6 +96,7 @@ interface UserResponse {
 }
 
 export const getAllDebridUser = async (apikey: string) => {
+	const config = getConfiguration();
 	let endpoint = `${getAllDebridApiUrl()}/v4/user?agent=${config.allDebridAgent}&apikey=${apikey}`;
 	try {
 		const response = await axios.get<UserResponse>(endpoint);
@@ -113,6 +128,7 @@ interface MagnetUploadResponse {
 }
 
 export const uploadMagnet = async (apikey: string, hashes: string[]) => {
+	const config = getConfiguration();
 	try {
 		let endpoint = `${getAllDebridApiUrl()}/v4/magnet/upload?agent=${config.allDebridAgent}&apikey=${apikey}`;
 		for (const hash of hashes) {
@@ -168,6 +184,7 @@ export const getMagnetStatus = async (
 	session?: number,
 	counter?: number
 ): Promise<MagnetStatusResponse> => {
+	const config = getConfiguration();
 	let endpoint = `${getAllDebridApiUrl()}/v4/magnet/status?agent=${config.allDebridAgent}&apikey=${apikey}`;
 	if (magnetId) {
 		endpoint += `&id=${magnetId}`;
@@ -194,6 +211,7 @@ interface MagnetDeleteResponse {
 }
 
 export const deleteMagnet = async (apikey: string, id: string): Promise<MagnetDeleteResponse> => {
+	const config = getConfiguration();
 	let endpoint = `${getAllDebridApiUrl()}/v4/magnet/delete?agent=${config.allDebridAgent}&apikey=${apikey}&id=${id}`;
 	try {
 		const response = await axios.get<MagnetDeleteResponse>(endpoint);
@@ -214,6 +232,7 @@ interface MagnetRestartResponse {
 }
 
 export const restartMagnet = async (apikey: string, id: string): Promise<MagnetRestartResponse> => {
+	const config = getConfiguration();
 	let endpoint = `${getAllDebridApiUrl()}/v4/magnet/restart?agent=${config.allDebridAgent}&apikey=${apikey}&id=${id}`;
 	try {
 		const response = await axios.get<MagnetRestartResponse>(endpoint);
@@ -251,6 +270,7 @@ export const adInstantCheck = async (
 	apikey: string,
 	hashes: string[]
 ): Promise<AdInstantAvailabilityResponse> => {
+	const config = getConfiguration();
 	let endpoint = `${getAllDebridApiUrl()}/v4/magnet/instant?agent=${config.allDebridAgent}&apikey=${apikey}`;
 	for (const hash of hashes) {
 		endpoint += `&magnets[]=${hash}`;

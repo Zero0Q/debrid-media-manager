@@ -17,27 +17,28 @@ let bannedWordSet: Set<string> = new Set();
 let bannedWordSet2: Array<string> = [];
 
 // Only load wordlists on the server side to avoid 'fs' issues in the browser
-if (!isBrowser()) {
+if (typeof window === 'undefined') {
 	try {
 		// Using dynamic import for fs to prevent bundling in client-side code
-		const fs = require('fs');
+		const { readFileSync } = require('fs');
 		try {
-			let data = fs.readFileSync('./wordlist.txt', 'utf8');
-			dictionary = new Set(data.toLowerCase().split('\n'));
+			dictionary = new Set(readFileSync('./wordlist.txt', 'utf8').toLowerCase().split('\n'));
 		} catch (err) {
 			console.error('error loading wordlist', err);
 		}
 
 		try {
-			let data = fs.readFileSync('./bannedwordlist.txt', 'utf8');
-			bannedWordSet = new Set(data.toLowerCase().split('\n'));
+			bannedWordSet = new Set(
+				readFileSync('./bannedwordlist.txt', 'utf8').toLowerCase().split('\n')
+			);
 		} catch (err) {
 			console.error('error loading banned wordlist', err);
 		}
 
 		try {
-			let data = fs.readFileSync('./bannedwordlist2.txt', 'utf8');
-			bannedWordSet2 = data.toLowerCase().split('\n');
+			bannedWordSet2 = readFileSync('./bannedwordlist2.txt', 'utf8')
+				.toLowerCase()
+				.split('\n');
 		} catch (err) {
 			console.error('error loading banned wordlist 2', err);
 		}
