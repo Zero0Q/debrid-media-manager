@@ -83,7 +83,7 @@ const useRealDebrid = () => {
 		};
 
 		auth();
-	}, [token, refreshToken, clientId, clientSecret]);
+	}, [token, refreshToken, clientId, clientSecret, setToken]);
 
 	return { user, error, loading, isRefreshing, hasAuth: !!token };
 };
@@ -100,7 +100,7 @@ const useAllDebrid = () => {
 		getAllDebridUser(token)
 			.then((user) => setUser(user as AllDebridUser))
 			.catch((e) => setError(e as Error));
-	}, [token, setToken]); // Added setToken to dependency array
+	}, [token, setToken]); // Add setToken to dependency array
 
 	return { user, error, hasAuth: !!token };
 };
@@ -180,7 +180,7 @@ const useTrakt = () => {
 		};
 
 		auth();
-	}, [token]); // Remove refreshToken from dependencies to prevent re-runs
+	}, [token, isAuthenticating, refreshToken, setToken, setRefreshToken, setUserSlug]); // Add missing dependencies
 
 	return { user, error, loading, hasAuth: !!token };
 };

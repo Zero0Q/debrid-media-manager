@@ -10,14 +10,12 @@
  */
 
 const mediaTests = require('./testMedia');
-const crypto = require('crypto');
+import { createHash } from 'crypto';
 
 // Create test auth params without requiring browser APIs
 const generateTestToken = () => {
-	// Generate a timestamp-based key and a simple hash for testing
 	const key = `${Date.now()}`;
-	// Create a simple token for testing purposes only
-	const solution = crypto.createHash('md5').update(key).digest('hex').substring(0, 16);
+	const solution = createHash('md5').update(key).digest('hex').substring(0, 16);
 
 	return { dmmProblemKey: key, solution };
 };
@@ -51,31 +49,39 @@ Examples:
 		console.log('\n=== Available Movie IDs ===');
 
 		console.log('\nPopular Movies:');
-		mediaTests.movieIds.popular.forEach((m) => console.log(`- ${m.title} (${m.id})`));
+		mediaTests.movieIds.popular.forEach((m: { title: string; id: string }) =>
+			console.log(`- ${m.title} (${m.id})`)
+		);
 
 		console.log('\nClassic Movies:');
-		mediaTests.movieIds.classics.forEach((m) => console.log(`- ${m.title} (${m.id})`));
+		mediaTests.movieIds.classics.forEach((m: { title: string; id: string }) =>
+			console.log(`- ${m.title} (${m.id})`)
+		);
 
 		console.log('\nGenre Movies:');
-		mediaTests.movieIds.genres.forEach((m) =>
+		mediaTests.movieIds.genres.forEach((m: { title: string; id: string; genre: string }) =>
 			console.log(`- ${m.title} (${m.id}) [${m.genre}]`)
 		);
 
 		console.log('\n=== Available TV Show IDs ===');
 
 		console.log('\nPopular Shows:');
-		mediaTests.tvIds.popular.forEach((t) =>
+		mediaTests.tvIds.popular.forEach((t: { title: string; id: string; seasons: string[] }) =>
 			console.log(`- ${t.title} (${t.id}) - Seasons: ${t.seasons.join(', ')}`)
 		);
 
 		console.log('\nGenre Shows:');
-		mediaTests.tvIds.genres.forEach((t) =>
-			console.log(`- ${t.title} (${t.id}) - Seasons: ${t.seasons.join(', ')} [${t.genre}]`)
+		mediaTests.tvIds.genres.forEach(
+			(t: { title: string; id: string; seasons: string[]; genre: string }) =>
+				console.log(
+					`- ${t.title} (${t.id}) - Seasons: ${t.seasons.join(', ')} [${t.genre}]`
+				)
 		);
 
 		console.log('\nSpecial Shows:');
-		mediaTests.tvIds.special.forEach((t) =>
-			console.log(`- ${t.title} (${t.id}) - Seasons: ${t.seasons.join(', ')} [${t.type}]`)
+		mediaTests.tvIds.special.forEach(
+			(t: { title: string; id: string; seasons: string[]; type: string }) =>
+				console.log(`- ${t.title} (${t.id}) - Seasons: ${t.seasons.join(', ')} [${t.type}]`)
 		);
 
 		process.exit(0);

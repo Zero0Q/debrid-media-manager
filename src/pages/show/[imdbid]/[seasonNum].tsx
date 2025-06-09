@@ -20,7 +20,6 @@ import {
 } from '@/utils/episodeUtils';
 import { convertToUserTorrent, fetchAllDebrid } from '@/utils/fetchTorrents';
 import { instantCheckInAd, instantCheckInRd, wrapLoading } from '@/utils/instantChecks';
-import { quickSearch } from '@/utils/quickSearch';
 import { sortByMedian } from '@/utils/results';
 import { isVideo } from '@/utils/selectable';
 import { defaultEpisodeSize, defaultPlayer } from '@/utils/settings';
@@ -32,7 +31,7 @@ import Head from 'next/head';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FunctionComponent, useEffect, useMemo, useState } from 'react';
+import { FunctionComponent, useCallback, useEffect, useMemo, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 
 type ShowInfo = {
@@ -80,6 +79,7 @@ const TvSearch: FunctionComponent = () => {
 
 	const router = useRouter();
 	const { imdbid, seasonNum } = router.query;
+	const { isReady } = router; // Add this line to get isReady from router
 
 	const expectedEpisodeCount = useMemo(
 		() =>
@@ -112,13 +112,124 @@ const TvSearch: FunctionComponent = () => {
 		fetchShowInfo();
 	}, [imdbid, seasonNum, router]);
 
-	async function initialize() {
+	const fetchData = useCallback(
+		async (imdbId: string, seasonNum: number, page: number = 0) => {
+			const [tokenWithTimestamp, tokenHash] = await generateTokenAndHash();
+			if (page === 0) {
+				setSearchResults([]);
+				setTotalUncachedCount(0);
+			}
+			setErrorMessage('');
+			setSearchState('loading');
+			try {
+				const response = await axios.get<SearchApiResponse>(
+					`/api/torrents/tv?imdbId=${imdbId}&seasonNum=${seasonNum}&dmmProblemKey=${tokenWithTimestamp}&solution=${tokenHash}&onlyTrusted=${onlyTrustedTorrents}&maxSize=${episodeMaxSize}&page=${page}`
+				);
+
+				if (response.status !== 200) {
+					setSearchState(response.headers.status ?? 'loaded');
+					return;
+				}
+
+				if (response.data.results?.length) {
+					const results = response.data.results;
+					setSearchResults((prevResults) => {
+						const newResults = [
+							...prevResults,
+							...results.map((r) => ({
+								...r,
+								rdAvailable: false,
+								adAvailable: false,
+								noVideos: false,
+								files: [],
+							})),
+						];
+						return newResults.sort((a, b) => {
+							const aAvailable = a.rdAvailable || a.adAvailable;
+							const bAvailable = b.rdAvailable || b.adAvailable;
+							if (aAvailable !== bAvailable) {
+								return aAvailable ? -1 : 1;
+							}
+							return b.fileSize - a.fileSize;
+						});
+					});
+					setHasMoreResults(results.length > 0);
+					toast(`Found ${results.length} results`, searchToastOptions);
+
+					const hashArr = results.map((r) => r.hash);
+					const instantChecks = [];
+					if (rdKey) {
+						const [tokenWithTimestamp, tokenHash] = await generateTokenAndHash();
+						instantChecks.push(
+							wrapLoading(
+								'RD',
+								instantCheckInRd(
+									tokenWithTimestamp,
+									tokenHash,
+									imdbId,
+									hashArr,
+									setSearchResults,
+									sortByMedian
+								)
+							)
+						);
+					}
+					if (adKey)
+						instantChecks.push(
+							wrapLoading(
+								'AD',
+								instantCheckInAd(adKey, hashArr, setSearchResults, sortByMedian)
+							)
+						);
+					const counts = await Promise.all(instantChecks);
+					setSearchState('loaded');
+					const newUncachedCount =
+						hashArr.length - counts.reduce((acc, cur) => acc + cur, 0);
+					setTotalUncachedCount((prev) => prev + newUncachedCount);
+				} else {
+					if (page === 0) {
+						setSearchResults([]);
+						setFilteredResults([]);
+					}
+					setHasMoreResults(false);
+					toast(`No${page === 0 ? '' : ' more'} results found`, searchToastOptions);
+				}
+			} catch (error) {
+				console.error(error);
+				if ((error as AxiosError).response?.status === 403) {
+					setErrorMessage(
+						'Please check the time in your device. If it is correct, please try again.'
+					);
+				} else {
+					setErrorMessage(
+						'There was an error searching for the query. Please try again later.'
+					);
+					setHasMoreResults(false);
+				}
+			} finally {
+				setSearchState('loaded');
+			}
+		},
+		[rdKey, adKey, onlyTrustedTorrents, episodeMaxSize]
+	);
+
+	const fetchHashAndProgress = useCallback(async (hash?: string) => {
+		const torrents = await torrentDB.all();
+		const records: Record<string, number> = {};
+		for (const t of torrents) {
+			if (hash && t.hash !== hash) continue;
+			records[`${t.id.substring(0, 3)}${t.hash}`] = t.progress;
+		}
+		setHashAndProgress((prev) => ({ ...prev, ...records }));
+	}, []);
+
+	const initialize = useCallback(async () => {
 		await torrentDB.initializeDB();
 		await Promise.all([
 			fetchData(imdbid as string, parseInt(seasonNum as string), 0),
 			fetchHashAndProgress(),
 		]);
-	}
+	}, [imdbid, seasonNum, fetchData, fetchHashAndProgress]);
 
 	useEffect(() => {
 		if (!imdbid || !seasonNum || isLoading) return;
@@ -127,128 +238,12 @@ const TvSearch: FunctionComponent = () => {
 		setFilteredResults([]);
 		setQuery(defaultTorrentsFilter); // Reset query to default filter
 		initialize();
-	}, [imdbid, seasonNum, isLoading]);
+	}, [imdbid, seasonNum, isLoading, initialize, defaultTorrentsFilter]);
 
 	useEffect(() => {
 		if (!imdbid || !isReady) return;
 		initialize();
-	}, [imdbid, isReady, initialize, defaultTorrentsFilter]);
-
-	async function fetchData(imdbId: string, seasonNum: number, page: number = 0) {
-		const [tokenWithTimestamp, tokenHash] = await generateTokenAndHash();
-		if (page === 0) {
-			setSearchResults([]);
-			setTotalUncachedCount(0);
-		}
-		setErrorMessage('');
-		setSearchState('loading');
-		try {
-			const response = await axios.get<SearchApiResponse>(
-				`/api/torrents/tv?imdbId=${imdbId}&seasonNum=${seasonNum}&dmmProblemKey=${tokenWithTimestamp}&solution=${tokenHash}&onlyTrusted=${onlyTrustedTorrents}&maxSize=${episodeMaxSize}&page=${page}`
-			);
-
-			if (response.status !== 200) {
-				setSearchState(response.headers.status ?? 'loaded');
-				return;
-			}
-
-			if (response.data.results?.length) {
-				const results = response.data.results;
-				setSearchResults((prevResults) => {
-					const newResults = [
-						...prevResults,
-						...results.map((r) => ({
-							...r,
-							rdAvailable: false,
-							adAvailable: false,
-							noVideos: false,
-							files: [],
-						})),
-					];
-					return newResults.sort((a, b) => {
-						const aAvailable = a.rdAvailable || a.adAvailable;
-						const bAvailable = b.rdAvailable || b.adAvailable;
-						if (aAvailable !== bAvailable) {
-							return aAvailable ? -1 : 1;
-						}
-						return b.fileSize - a.fileSize;
-					});
-				});
-				setHasMoreResults(results.length > 0);
-				toast(`Found ${results.length} results`, searchToastOptions);
-
-				const hashArr = results.map((r) => r.hash);
-				const instantChecks = [];
-				if (rdKey) {
-					const [tokenWithTimestamp, tokenHash] = await generateTokenAndHash();
-					instantChecks.push(
-						wrapLoading(
-							'RD',
-							instantCheckInRd(
-								tokenWithTimestamp,
-								tokenHash,
-								imdbId,
-								hashArr,
-								setSearchResults,
-								sortByMedian
-							)
-						)
-					);
-				}
-				if (adKey)
-					instantChecks.push(
-						wrapLoading(
-							'AD',
-							instantCheckInAd(adKey, hashArr, setSearchResults, sortByMedian)
-						)
-					);
-				const counts = await Promise.all(instantChecks);
-				setSearchState('loaded');
-				const newUncachedCount = hashArr.length - counts.reduce((acc, cur) => acc + cur, 0);
-				setTotalUncachedCount((prev) => prev + newUncachedCount);
-			} else {
-				if (page === 0) {
-					setSearchResults([]);
-					setFilteredResults([]);
-				}
-				setHasMoreResults(false);
-				toast(`No${page === 0 ? '' : ' more'} results found`, searchToastOptions);
-			}
-		} catch (error) {
-			console.error(error);
-			if ((error as AxiosError).response?.status === 403) {
-				setErrorMessage(
-					'Please check the time in your device. If it is correct, please try again.'
-				);
-			} else {
-				setErrorMessage(
-					'There was an error searching for the query. Please try again later.'
-				);
-				setHasMoreResults(false);
-			}
-		} finally {
-			setSearchState('loaded');
-		}
-	}
-
-	useEffect(() => {
-		if (searchResults.length === 0) {
-			setFilteredResults([]);
-			return;
-		}
-		const filteredResults = quickSearch(query, searchResults);
-		setFilteredResults(filteredResults);
-	}, [query, searchResults]);
-
-	async function fetchHashAndProgress(hash?: string) {
-		const torrents = await torrentDB.all();
-		const records: Record<string, number> = {};
-		for (const t of torrents) {
-			if (hash && t.hash !== hash) continue;
-			records[`${t.id.substring(0, 3)}${t.hash}`] = t.progress;
-		}
-		setHashAndProgress((prev) => ({ ...prev, ...records }));
-	}
+	}, [imdbid, isReady, initialize]);
 
 	async function addRd(hash: string) {
 		await handleAddAsMagnetInRd(rdKey!, hash, async (info: TorrentInfoResponse) => {

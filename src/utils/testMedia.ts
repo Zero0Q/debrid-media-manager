@@ -1,10 +1,5 @@
-/**
- * Test script for movies and TV torrents endpoints
- *
- * This file contains sample IMDb IDs for testing the application's functionality
- * with various movies and TV shows across different genres, years, and popularity.
- */
-
+import { AxiosError } from 'axios';
+import { createHash } from 'crypto';
 const axios = require('axios');
 
 // Create an axios instance with a base URL
@@ -65,13 +60,13 @@ const getAuthParams = () => {
 	// Generate a timestamp-based key and a simple hash for testing
 	const key = `${Date.now()}`;
 	// Create a simple token for testing purposes only
-	const solution = crypto.createHash('md5').update(key).digest('hex').substring(0, 16);
+	const solution = createHash('md5').update(key).digest('hex').substring(0, 16);
 
 	return { dmmProblemKey: key, solution };
 };
 
 // Test movie endpoint with one ID
-const testMovieEndpoint = async (imdbId) => {
+const testMovieEndpoint = async (imdbId: string) => {
 	try {
 		const auth = getAuthParams();
 		const url = `/api/torrents/movie?imdbId=${imdbId}&dmmProblemKey=${auth.dmmProblemKey}&solution=${auth.solution}&onlyTrusted=false&maxSize=0&page=0`;
@@ -83,17 +78,18 @@ const testMovieEndpoint = async (imdbId) => {
 		console.log(`Results found: ${response.data.results?.length || 0}`);
 		return response.data;
 	} catch (error) {
-		console.error(`Error testing movie ${imdbId}:`, error.message);
-		if (error.response) {
-			console.error(`Status: ${error.response.status}`);
-			console.error(`Data:`, error.response.data);
+		const axiosError = error as AxiosError;
+		console.error(`Error testing movie ${imdbId}:`, axiosError.message);
+		if (axiosError.response) {
+			console.error(`Status: ${axiosError.response.status}`);
+			console.error(`Data:`, axiosError.response.data);
 		}
 		return null;
 	}
 };
 
 // Test TV endpoint with one ID and season
-const testTVEndpoint = async (imdbId, seasonNum) => {
+const testTVEndpoint = async (imdbId: string, seasonNum: number) => {
 	try {
 		const auth = getAuthParams();
 		const url = `/api/torrents/tv?imdbId=${imdbId}&seasonNum=${seasonNum}&dmmProblemKey=${auth.dmmProblemKey}&solution=${auth.solution}&onlyTrusted=false&maxSize=0&page=0`;
@@ -105,10 +101,11 @@ const testTVEndpoint = async (imdbId, seasonNum) => {
 		console.log(`Results found: ${response.data.results?.length || 0}`);
 		return response.data;
 	} catch (error) {
-		console.error(`Error testing TV ${imdbId} Season ${seasonNum}:`, error.message);
-		if (error.response) {
-			console.error(`Status: ${error.response.status}`);
-			console.error(`Data:`, error.response.data);
+		const axiosError = error as AxiosError;
+		console.error(`Error testing TV ${imdbId} Season ${seasonNum}:`, axiosError.message);
+		if (axiosError.response) {
+			console.error(`Status: ${axiosError.response.status}`);
+			console.error(`Data:`, axiosError.response.data);
 		}
 		return null;
 	}

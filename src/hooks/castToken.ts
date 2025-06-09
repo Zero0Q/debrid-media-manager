@@ -12,7 +12,7 @@ export function useCastToken() {
 
 	useEffect(() => {
 		const fetchToken = async () => {
-			if (dmmCastToken || !clientId || !clientSecret || !refreshToken) return;
+			if (dmmCastToken || !clientId || !clientSecret || !refreshToken || !accessToken) return;
 
 			try {
 				const res = await fetch('/api/stremio/id?token=' + accessToken);
@@ -27,7 +27,7 @@ export function useCastToken() {
 		};
 
 		fetchToken();
-	}, [clientId, clientSecret, dmmCastToken, refreshToken, setDmmCastToken]);
+	}, [clientId, clientSecret, dmmCastToken, refreshToken, accessToken, setDmmCastToken]);
 
 	return dmmCastToken;
 }
