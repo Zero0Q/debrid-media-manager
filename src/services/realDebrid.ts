@@ -331,11 +331,11 @@ export const proxyUnrestrictLink = async (
 
 export const getTimeISO = async (): Promise<string> => {
 	try {
-		// Use proxy for browser environment, direct call for server-side
+		// Use dedicated endpoint for time API to avoid proxy issues
 		const url =
 			isBrowser() && process.env.NODE_ENV === 'production'
-				? `/api/localproxy?url=${encodeURIComponent('https://api.real-debrid.com/rest/1.0/time/iso')}`
-				: `${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/time/iso`;
+				? '/api/rd/time' // Use dedicated endpoint in production browser environment
+				: `${getProxyUrl(config.proxy)}${config.realDebridHostname}/rest/1.0/time/iso`; // Use regular proxy for server-side
 
 		console.log('Fetching time from URL:', url);
 		const response = await axios.get<string>(url);
