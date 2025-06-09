@@ -16,46 +16,64 @@ export class ScrapedService extends DatabaseClient {
 		const maxSizeMB = maxSizeGB && maxSizeGB > 0 ? maxSizeGB * 1024 : null;
 		const offset = page * 50;
 
-		let query = Prisma.sql`
-      SELECT
-        JSON_ARRAYAGG(
-          JSON_OBJECT(
-            'hash', jt.hash,
-            'title', jt.title,
-            'fileSize', jt.fileSize
-          )
-        ) AS value
-      FROM (
-        SELECT
-          jt.hash,
-          jt.title,
-          jt.fileSize
-        FROM
-          ScrapedTrue s
-        JOIN
-          JSON_TABLE(
-            s.value,
-            '$[*]'
-            COLUMNS (
-              hash VARCHAR(255) PATH '$.hash',
-              title VARCHAR(255) PATH '$.title',
-              fileSize DECIMAL(10,2) PATH '$.fileSize'
-            )
-          ) AS jt
-        WHERE
-          s.key = ${key}
-        ${maxSizeMB ? Prisma.sql`AND jt.fileSize <= ${maxSizeMB}` : Prisma.empty}
-        ORDER BY jt.fileSize DESC
-        LIMIT 50
-        OFFSET ${offset}
-      ) AS jt`;
-
 		try {
+			// First check if the key exists
+			const recordExists = await this.prisma.scrapedTrue.findUnique({
+				where: { key },
+				select: { id: true },
+			});
+
+			if (!recordExists) {
+				return undefined;
+			}
+
+			// Use COALESCE to handle empty result sets
+			let query = Prisma.sql`
+			SELECT
+				COALESCE(
+					JSON_ARRAYAGG(
+						JSON_OBJECT(
+							'hash', jt.hash,
+							'title', jt.title,
+							'fileSize', jt.fileSize
+						)
+					),
+					JSON_ARRAY()
+				) AS value
+			FROM (
+				SELECT
+					jt.hash,
+					jt.title,
+					jt.fileSize
+				FROM
+					ScrapedTrue s
+				JOIN
+					JSON_TABLE(
+						s.value,
+						'$[*]'
+						COLUMNS (
+							hash VARCHAR(255) PATH '$.hash',
+							title VARCHAR(255) PATH '$.title',
+							fileSize DECIMAL(10,2) PATH '$.fileSize'
+						)
+					) AS jt
+				WHERE
+					s.key = ${key}
+				${maxSizeMB ? Prisma.sql`AND jt.fileSize <= ${maxSizeMB}` : Prisma.empty}
+				ORDER BY jt.fileSize DESC
+				LIMIT 50
+				OFFSET ${offset}
+			) AS jt`;
+
 			const result = await this.prisma.$queryRaw<{ value: T }[]>(query);
 			return result.length > 0 ? result[0].value : undefined;
 		} catch (error) {
 			console.error('Database query failed:', error);
-			throw new Error('Failed to retrieve scrapedtrue results.');
+			throw new Error(
+				`Failed to retrieve scrapedtrue results for key ${key}: ${
+					error instanceof Error ? error.message : 'Unknown error'
+				}`
+			);
 		}
 	}
 
@@ -75,46 +93,62 @@ export class ScrapedService extends DatabaseClient {
 		const maxSizeMB = maxSizeGB ? maxSizeGB * 1024 : null;
 		const offset = page * 50;
 
-		let query = Prisma.sql`
-      SELECT
-        JSON_ARRAYAGG(
-          JSON_OBJECT(
-            'hash', jt.hash,
-            'title', jt.title,
-            'fileSize', jt.fileSize
-          )
-        ) AS value
-      FROM (
-        SELECT
-          jt.hash,
-          jt.title,
-          jt.fileSize
-        FROM
-          Scraped s
-        JOIN
-          JSON_TABLE(
-            s.value,
-            '$[*]'
-            COLUMNS (
-              hash VARCHAR(255) PATH '$.hash',
-              title VARCHAR(255) PATH '$.title',
-              fileSize DECIMAL(10,2) PATH '$.fileSize'
-            )
-          ) AS jt
-        WHERE
-          s.key = ${key}
-        ${maxSizeMB ? Prisma.sql`AND jt.fileSize <= ${maxSizeMB}` : Prisma.empty}
-        ORDER BY jt.fileSize DESC
-        LIMIT 50
-        OFFSET ${offset}
-      ) AS jt`;
-
 		try {
+			// First check if the key exists
+			const recordExists = await this.prisma.scraped.findUnique({
+				where: { key },
+				select: { id: true },
+			});
+
+			if (!recordExists) {
+				return undefined;
+			}
+
+			// Use COALESCE to handle empty result sets
+			let query = Prisma.sql`
+			SELECT
+				COALESCE(
+					JSON_ARRAYAGG(
+						JSON_OBJECT(
+							'hash', jt.hash,
+							'title', jt.title,
+							'fileSize', jt.fileSize
+						)
+					),
+					JSON_ARRAY()
+				) AS value
+			FROM (
+				SELECT
+					jt.hash,
+					jt.title,
+					jt.fileSize
+				FROM
+					Scraped s
+				JOIN
+					JSON_TABLE(
+						s.value,
+						'$[*]'
+						COLUMNS (
+							hash VARCHAR(255) PATH '$.hash',
+							title VARCHAR(255) PATH '$.title',
+							fileSize DECIMAL(10,2) PATH '$.fileSize'
+						)
+					) AS jt
+				WHERE
+					s.key = ${key}
+				${maxSizeMB ? Prisma.sql`AND jt.fileSize <= ${maxSizeMB}` : Prisma.empty}
+				ORDER BY jt.fileSize DESC
+				LIMIT 50
+				OFFSET ${offset}
+			) AS jt`;
+
 			const result = await this.prisma.$queryRaw<{ value: T }[]>(query);
 			return result.length > 0 ? result[0].value : undefined;
 		} catch (error) {
 			console.error('Database query failed:', error);
-			throw new Error('Failed to retrieve scraped results.');
+			throw new Error(
+				`Failed to retrieve scraped results for key ${key}: ${error instanceof Error ? error.message : 'Unknown error'}`
+			);
 		}
 	}
 
