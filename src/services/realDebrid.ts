@@ -119,14 +119,17 @@ export const getToken = async (
 
 export const getCurrentUser = async (accessToken: string) => {
 	try {
-		const client = await createAxiosClient(accessToken);
-		const proxyUrl = getProxyUrl(config.proxy);
-		const response = await client.get<UserResponse>(
-			`${proxyUrl}${config.realDebridHostname}/rest/1.0/user`
-		);
+		console.log('getCurrentUser: v2.0 - Using API route /api/realdebrid/user');
+		// Use our API route instead of direct Real-Debrid API call
+		const response = await axios.get<UserResponse>('/api/realdebrid/user', {
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		});
+		console.log('getCurrentUser: Success!', response.data);
 		return response.data;
 	} catch (error: any) {
-		console.error('Error fetching user information:', error.message);
+		console.error('Error fetching user information from API route:', error.message);
 		throw error;
 	}
 };
