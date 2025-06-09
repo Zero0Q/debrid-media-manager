@@ -426,10 +426,19 @@ function HashlistPage() {
 			</Head>
 			<Toaster position="bottom-right" />
 			<div className="mb-2 flex items-center justify-between">
-				<h1 className="text-xl font-bold text-white">
-					{allHashLists ? 'All Hash Lists' : hashlistTitle} ({userTorrentsList.length}{' '}
-					files in total; size: {(totalBytes / ONE_GIGABYTE / 1024).toFixed(1)} TB)
-				</h1>
+				<div className="flex items-center gap-4">
+					<h1 className="text-xl font-bold text-white">
+						{allHashLists ? 'All Hash Lists' : hashlistTitle} ({userTorrentsList.length}{' '}
+						files in total; size: {(totalBytes / ONE_GIGABYTE / 1024).toFixed(1)} TB)
+					</h1>
+					<button
+						className="rounded border-2 border-purple-500 bg-purple-900/30 px-4 py-2 font-semibold text-purple-100 transition-colors hover:bg-purple-800/50"
+						onClick={loadAllHashLists}
+						disabled={allHashLists}
+					>
+						{allHashLists ? 'Viewing All Hash Lists' : 'All Hash Lists'}
+					</button>
+				</div>
 				<Link
 					href="/"
 					className="rounded border-2 border-cyan-500 bg-cyan-900/30 px-2 py-1 text-sm text-cyan-100 transition-colors hover:bg-cyan-800/50"
@@ -450,13 +459,6 @@ function HashlistPage() {
 				/>
 			</div>
 			<div className="mb-4 flex flex-wrap items-center gap-2">
-				<button
-					className="rounded border-2 border-purple-500 bg-purple-900/30 px-2 py-1 text-purple-100 transition-colors hover:bg-purple-800/50"
-					onClick={loadAllHashLists}
-					disabled={allHashLists}
-				>
-					{allHashLists ? 'Viewing All Hash Lists' : 'View All Hash Lists'}
-				</button>
 				{allHashLists && (
 					<Link
 						href="/hashlist"
