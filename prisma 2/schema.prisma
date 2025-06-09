@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model Cache {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model Scraped {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model ScrapedTrue {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model Search {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model Cast {
+  id        String   @id @default(uuid())
+  imdbId    String
+  userId    String
+  hash      String
+  url       String   @db.Text
+  updatedAt DateTime @updatedAt
+  size      BigInt   @default(0)
+  link      String?
+
+  @@unique([imdbId, userId, hash])
+  @@index([imdbId, userId, updatedAt])
+}
+
+model CastProfile {
+  userId       String   @id
+  clientId     String
+  clientSecret String
+  updatedAt    DateTime @updatedAt
+  refreshToken String
+}
+
+model Titles {
+  imdbid            String  @id
+  title             String
+  is_original_title Boolean
+  year              Int
+
+  @@unique([imdbid, is_original_title])
+  @@unique([imdbid, title])
+}
+
+model Anime {
+  id              Int     @id @default(autoincrement())
+  anidb_id        Int?    @unique
+  anime_planet_id String? @unique
+  kitsu_id        Int?    @unique
+  mal_id          Int?    @unique
+  imdb_id         String? @unique
+  title           String
+  type            String
+  aliases         Json
+  description     String  @db.Text
+  poster_url      String
+  background_url  String
+  rating          Float
+
+  @@index([anidb_id])
+  @@index([anime_planet_id])
+  @@index([kitsu_id])
+  @@index([mal_id])
+  @@index([imdb_id])
+}
+
+model Available {
+  hash             String          @id
+  imdbId           String
+  filename         String
+  originalFilename String
+  bytes            BigInt
+  originalBytes    BigInt
+  host             String
+  progress         Int
+  status           String
+  ended            DateTime
+  updatedAt        DateTime        @updatedAt
+  files            AvailableFile[]
+
+  @@index([status])
+  @@index([imdbId])
+  @@index([imdbId, hash])
+}
+
+model AvailableFile {
+  link      String    @id
+  file_id   Int
+  hash      String
+  path      String    @db.Text
+  bytes     BigInt
+  available Available @relation(fields: [hash], references: [hash], onDelete: Cascade)
+
+  @@index([hash])
+}
+
+model User {
+  id                  Int                  @id @default(autoincrement())
+  patreonId           String?              @unique
+  githubId            String?              @unique
+  discordId           String?              @unique
+
+  patreonSubscription PatreonSubscription?
+}
+
+model PatreonSubscription {
+  id            Int      @id @default(autoincrement())
+  tier          String
+  perks         String
+  subscriptionDate DateTime @default(now())
+
+  userId        Int      @unique
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+model Report {
+  id        Int      @id @default(autoincrement())
+  hash      String
+  imdbId    String
+  userId    String
+  type      String   // "porn" or "wrong_imdb" or "wrong_season"
+  createdAt DateTime @default(now())
+
+  @@unique([hash, userId])
+  @@index([imdbId])
+  @@index([hash])
+}

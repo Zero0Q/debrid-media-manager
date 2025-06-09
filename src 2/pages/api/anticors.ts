@@ -15,13 +15,6 @@ const CONTENT_TYPES = {
 
 const ALLOWED_HOSTS = ['api.real-debrid.com', 'api.alldebrid.com'];
 
-// Define allowed origins for CORS
-const ALLOWED_ORIGINS = [
-	'https://debridmediamanager.com',
-	'https://www.debridmediamanager.com',
-	'https://debrid-media-manager-7282cb37c61a.herokuapp.com', // Add your Heroku domain
-];
-
 // Utility function to append query parameters
 function appendQueryParams(url: URL, params: any) {
 	Object.keys(params).forEach((key) => {
@@ -36,20 +29,6 @@ function appendQueryParams(url: URL, params: any) {
 
 const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse) => {
 	try {
-		// Handle CORS
-		const origin = req.headers.origin;
-		if (origin && ALLOWED_ORIGINS.includes(origin)) {
-			res.setHeader('Access-Control-Allow-Origin', origin);
-			res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-			res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-		}
-
-		// Handle preflight OPTIONS request
-		if (req.method === 'OPTIONS') {
-			res.status(200).end();
-			return;
-		}
-
 		const { url, ...otherQueryParams } = req.query;
 		if (typeof url !== 'string' || !url) {
 			return res.status(400).json({ error: 'No URL provided' });
