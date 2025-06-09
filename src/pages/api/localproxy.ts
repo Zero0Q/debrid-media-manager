@@ -102,24 +102,32 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 			}
 		}
 
-		// Then, add important headers from the original request (order matters here)
-		if (req.headers.authorization) {
-			reqHeaders.authorization = req.headers.authorization as string;
+		// Handle Authorization header specifically (case-insensitive)
+		const authHeader = req.headers.authorization || req.headers.Authorization;
+		if (authHeader) {
+			reqHeaders['Authorization'] = authHeader as string;
 		}
 
-		if (req.headers['content-type']) {
-			reqHeaders['content-type'] = req.headers['content-type'] as string;
+		// Handle Content-Type header specifically
+		const contentTypeHeader = req.headers['content-type'] || req.headers['Content-Type'];
+		if (contentTypeHeader) {
+			reqHeaders['Content-Type'] = contentTypeHeader as string;
 		}
 
-		// Forward all other headers that might be needed
+		// Forward other important headers
 		Object.entries(req.headers).forEach(([key, value]) => {
 			const lowerKey = key.toLowerCase();
-			// Specifically handle Trakt headers and other custom headers
+			// Skip authorization and content-type as we've already handled them above
+			if (lowerKey === 'authorization' || lowerKey === 'content-type') {
+				return;
+			}
+
+			// Handle other custom headers
 			if (
 				lowerKey.startsWith('x-') ||
 				lowerKey.startsWith('trakt-') ||
-				lowerKey === 'authorization' ||
-				lowerKey === 'content-type'
+				lowerKey === 'user-agent' ||
+				lowerKey === 'accept'
 			) {
 				if (typeof value === 'string') {
 					reqHeaders[key] = value;
