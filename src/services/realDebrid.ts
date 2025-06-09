@@ -18,8 +18,12 @@ const { publicRuntimeConfig: config } = getConfig();
 
 // Function to replace #num# with random number 0-9
 function getProxyUrl(baseUrl: string): string {
-	// In development, don't use proxy - connect directly to Real-Debrid API
-	if (process.env.NODE_ENV === 'development') {
+	// In development or on non-official domains, don't use proxy - connect directly to Real-Debrid API
+	if (
+		process.env.NODE_ENV === 'development' ||
+		(typeof window !== 'undefined' &&
+			!window.location.hostname.includes('debridmediamanager.com'))
+	) {
 		return '';
 	}
 	return baseUrl.replace('#num#', Math.floor(Math.random() * 10).toString());
