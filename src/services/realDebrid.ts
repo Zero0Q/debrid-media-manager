@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import getConfig from 'next/config';
 import qs from 'qs';
+import { isBrowser } from '../utils/checks';
 import {
 	AccessTokenResponse,
 	AddMagnetResponse,
@@ -16,7 +17,18 @@ import {
 
 const { publicRuntimeConfig: config } = getConfig();
 
-// Function to replace #num# with random number 0-9
+// Function to get appropriate URL based on environment
+function getApiUrl(baseUrl: string): string {
+	// In production with browser, use our local proxy
+	if (isBrowser() && process.env.NODE_ENV === 'production') {
+		return '/api/localproxy?url=https://api.real-debrid.com';
+	}
+
+	// In development, use the external proxy
+	return getProxyUrl(config.proxy) + config.realDebridHostname;
+}
+
+// Function to replace #num# with random number 0-9 (for development mode)
 function getProxyUrl(baseUrl: string): string {
 	return baseUrl.replace('#num#', Math.floor(Math.random() * 10).toString());
 }
@@ -29,7 +41,7 @@ function isValidSHA40Hash(hash: string): boolean {
 
 export const getDeviceCode = async () => {
 	try {
-		const url = `${getProxyUrl(config.proxy)}${config.realDebridHostname}/oauth/v2/device/code?client_id=${config.realDebridClientId}&new_credentials=yes`;
+		const url = `${getApiUrl('')}/oauth/v2/device/code?client_id=${config.realDebridClientId}&new_credentials=yes`;
 		const response = await axios.get<DeviceCodeResponse>(url);
 		return response.data;
 	} catch (error: any) {
@@ -40,7 +52,7 @@ export const getDeviceCode = async () => {
 
 export const getCredentials = async (deviceCode: string) => {
 	try {
-		const url = `${getProxyUrl(config.proxy)}${config.realDebridHostname}/oauth/v2/device/credentials?client_id=${config.realDebridClientId}&code=${deviceCode}`;
+		const url = `${getApiUrl('')}/oauth/v2/device/credentials?client_id=${config.realDebridClientId}&code=${deviceCode}`;
 		const response = await axios.get<CredentialsResponse>(url);
 		return response.data;
 	} catch (error: any) {

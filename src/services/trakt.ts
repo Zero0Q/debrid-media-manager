@@ -1,9 +1,15 @@
 import axios from 'axios';
 import getConfig from 'next/config';
-
-const TRAKT_API_URL = 'https://api.trakt.tv';
+import { isBrowser } from '../utils/checks';
 
 const { publicRuntimeConfig: config } = getConfig();
+
+// Use local proxy in production environment or the direct API URL in development
+const TRAKT_API_URL =
+	isBrowser() && process.env.NODE_ENV === 'production'
+		? '/api/localproxy?url=https://api.trakt.tv'
+		: 'https://api.trakt.tv';
+
 export interface TraktMedia {
 	title: string;
 	year: number;

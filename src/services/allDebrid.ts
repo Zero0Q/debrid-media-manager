@@ -1,7 +1,16 @@
 import axios from 'axios';
 import getConfig from 'next/config';
+import { isBrowser } from '../utils/checks';
 
 const { publicRuntimeConfig: config } = getConfig();
+
+// Use local proxy in production environment or direct API in development
+const getAllDebridApiUrl = () => {
+	if (isBrowser() && process.env.NODE_ENV === 'production') {
+		return '/api/localproxy?url=' + config.allDebridHostname;
+	}
+	return config.allDebridHostname;
+};
 
 interface PinResponse {
 	status: string;
@@ -17,7 +26,7 @@ interface PinResponse {
 
 export const getPin = async () => {
 	try {
-		let endpoint = `${config.allDebridHostname}/v4/pin/get?agent=${config.allDebridAgent}`;
+		let endpoint = `${getAllDebridApiUrl()}/v4/pin/get?agent=${config.allDebridAgent}`;
 		const response = await axios.get<PinResponse>(endpoint);
 		return response.data.data;
 	} catch (error) {
@@ -36,7 +45,7 @@ interface PinCheckResponse {
 }
 
 export const checkPin = async (pin: string, check: string) => {
-	let endpoint = `${config.allDebridHostname}/v4/pin/check?agent=${config.allDebridAgent}&check=${check}&pin=${pin}`;
+	let endpoint = `${getAllDebridApiUrl()}/v4/pin/check?agent=${config.allDebridAgent}&check=${check}&pin=${pin}`;
 	try {
 		let pinCheck = await axios.get<PinCheckResponse>(endpoint);
 
@@ -73,7 +82,7 @@ interface UserResponse {
 }
 
 export const getAllDebridUser = async (apikey: string) => {
-	let endpoint = `${config.allDebridHostname}/v4/user?agent=${config.allDebridAgent}&apikey=${apikey}`;
+	let endpoint = `${getAllDebridApiUrl()}/v4/user?agent=${config.allDebridAgent}&apikey=${apikey}`;
 	try {
 		const response = await axios.get<UserResponse>(endpoint);
 		return response.data.data.user;
@@ -105,7 +114,7 @@ interface MagnetUploadResponse {
 
 export const uploadMagnet = async (apikey: string, hashes: string[]) => {
 	try {
-		let endpoint = `${config.allDebridHostname}/v4/magnet/upload?agent=${config.allDebridAgent}&apikey=${apikey}`;
+		let endpoint = `${getAllDebridApiUrl()}/v4/magnet/upload?agent=${config.allDebridAgent}&apikey=${apikey}`;
 		for (const hash of hashes) {
 			endpoint += `&magnets[]=${hash}`;
 		}
@@ -159,7 +168,7 @@ export const getMagnetStatus = async (
 	session?: number,
 	counter?: number
 ): Promise<MagnetStatusResponse> => {
-	let endpoint = `${config.allDebridHostname}/v4/magnet/status?agent=${config.allDebridAgent}&apikey=${apikey}`;
+	let endpoint = `${getAllDebridApiUrl()}/v4/magnet/status?agent=${config.allDebridAgent}&apikey=${apikey}`;
 	if (magnetId) {
 		endpoint += `&id=${magnetId}`;
 	} else if (statusFilter) {
@@ -185,7 +194,7 @@ interface MagnetDeleteResponse {
 }
 
 export const deleteMagnet = async (apikey: string, id: string): Promise<MagnetDeleteResponse> => {
-	let endpoint = `${config.allDebridHostname}/v4/magnet/delete?agent=${config.allDebridAgent}&apikey=${apikey}&id=${id}`;
+	let endpoint = `${getAllDebridApiUrl()}/v4/magnet/delete?agent=${config.allDebridAgent}&apikey=${apikey}&id=${id}`;
 	try {
 		const response = await axios.get<MagnetDeleteResponse>(endpoint);
 		return response.data;
@@ -205,7 +214,7 @@ interface MagnetRestartResponse {
 }
 
 export const restartMagnet = async (apikey: string, id: string): Promise<MagnetRestartResponse> => {
-	let endpoint = `${config.allDebridHostname}/v4/magnet/restart?agent=${config.allDebridAgent}&apikey=${apikey}&id=${id}`;
+	let endpoint = `${getAllDebridApiUrl()}/v4/magnet/restart?agent=${config.allDebridAgent}&apikey=${apikey}&id=${id}`;
 	try {
 		const response = await axios.get<MagnetRestartResponse>(endpoint);
 		if (response.data.error) throw new Error(response.data.error.message);
@@ -242,7 +251,7 @@ export const adInstantCheck = async (
 	apikey: string,
 	hashes: string[]
 ): Promise<AdInstantAvailabilityResponse> => {
-	let endpoint = `${config.allDebridHostname}/v4/magnet/instant?agent=${config.allDebridAgent}&apikey=${apikey}`;
+	let endpoint = `${getAllDebridApiUrl()}/v4/magnet/instant?agent=${config.allDebridAgent}&apikey=${apikey}`;
 	for (const hash of hashes) {
 		endpoint += `&magnets[]=${hash}`;
 	}
