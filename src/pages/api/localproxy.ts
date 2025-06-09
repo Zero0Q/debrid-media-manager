@@ -77,6 +77,12 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 		const decodedUrl = decodeURIComponent(url);
 		const parsedUrl = new URL(decodedUrl);
 
+		// Debug log for troubleshooting
+		console.log(
+			`Proxy request to ${parsedUrl.hostname}, headers:`,
+			JSON.stringify(req.headers)
+		);
+
 		// Check if host is allowed
 		if (!ALLOWED_HOSTS.some((host) => parsedUrl.hostname.includes(host))) {
 			return res.status(403).json({ error: `Host ${parsedUrl.hostname} is not allowed` });
@@ -86,15 +92,9 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 		appendQueryParams(parsedUrl, otherQueryParams);
 
 		// Build request headers
-		let reqHeaders: Record<string, string> = {
-			// Forward common headers
-			...(req.headers.authorization && { authorization: req.headers.authorization }),
-			...(req.headers['content-type'] && {
-				'content-type': req.headers['content-type' as keyof typeof req.headers] as string,
-			}),
-		};
+		let reqHeaders: Record<string, string> = {};
 
-		// Add API specific headers
+		// First, add API specific headers as base
 		for (const [apiHost, headers] of Object.entries(API_HEADERS)) {
 			if (parsedUrl.hostname.includes(apiHost)) {
 				reqHeaders = { ...reqHeaders, ...headers };
@@ -102,12 +102,35 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 			}
 		}
 
-		// Forward all custom headers that were in the original request
+		// Then, add important headers from the original request (order matters here)
+		if (req.headers.authorization) {
+			reqHeaders.authorization = req.headers.authorization as string;
+		}
+
+		if (req.headers['content-type']) {
+			reqHeaders['content-type'] = req.headers['content-type'] as string;
+		}
+
+		// Forward all other headers that might be needed
 		Object.entries(req.headers).forEach(([key, value]) => {
-			if (key.startsWith('x-') || key.toLowerCase().startsWith('trakt-')) {
-				reqHeaders[key] = value as string;
+			const lowerKey = key.toLowerCase();
+			// Specifically handle Trakt headers and other custom headers
+			if (
+				lowerKey.startsWith('x-') ||
+				lowerKey.startsWith('trakt-') ||
+				lowerKey === 'authorization' ||
+				lowerKey === 'content-type'
+			) {
+				if (typeof value === 'string') {
+					reqHeaders[key] = value;
+				} else if (Array.isArray(value) && value.length > 0) {
+					reqHeaders[key] = value[0];
+				}
 			}
 		});
+
+		// Debug log to see what headers are being sent
+		console.log(`Sending headers to ${parsedUrl.hostname}:`, JSON.stringify(reqHeaders));
 
 		// Handle request body for POST, PUT, PATCH, DELETE
 		let reqBody: string | URLSearchParams | undefined;
@@ -137,9 +160,18 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 		// Get response body
 		let responseBody: any;
 		const contentType = response.headers.get('content-type') || '';
+
+		// Debug log for response
+		console.log(`Received response from ${parsedUrl.hostname}, status:`, response.status);
+
 		if (contentType.includes('application/json')) {
-			responseBody = await response.json();
-			responseBody = JSON.stringify(responseBody);
+			try {
+				const jsonData = await response.json();
+				responseBody = JSON.stringify(jsonData);
+			} catch (error) {
+				// If JSON parsing fails, fall back to text
+				responseBody = await response.text();
+			}
 		} else {
 			responseBody = await response.text();
 		}
@@ -152,7 +184,8 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 				key.startsWith('x-') ||
 				key === 'cache-control' ||
 				key === 'etag' ||
-				key === 'content-disposition'
+				key === 'content-disposition' ||
+				key === 'content-type'
 			) {
 				responseHeaders[key] = value;
 			}
@@ -160,7 +193,9 @@ const handler: NextApiHandler = async (req: NextApiRequest, res: NextApiResponse
 
 		// Set status and content type
 		res.status(response.status);
-		res.setHeader('content-type', contentType);
+		if (contentType) {
+			res.setHeader('content-type', contentType);
+		}
 
 		// Set other response headers
 		Object.keys(responseHeaders).forEach((key) => {
