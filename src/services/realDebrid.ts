@@ -18,14 +18,25 @@ const { publicRuntimeConfig: config } = getConfig();
 
 // Function to replace #num# with random number 0-9
 function getProxyUrl(baseUrl: string): string {
-	// In development or on non-official domains, don't use proxy - connect directly to Real-Debrid API
-	if (
-		process.env.NODE_ENV === 'development' ||
-		(typeof window !== 'undefined' &&
-			!window.location.hostname.includes('debridmediamanager.com'))
-	) {
+	// Force bypass proxy if environment variable is set
+	if (process.env.BYPASS_PROXY === 'true' || process.env.NODE_ENV === 'development') {
 		return '';
 	}
+
+	// Always bypass proxy for any domain that's not the official debridmediamanager.com
+	// This includes Vercel deployments, local development, and any other custom domains
+	if (typeof window !== 'undefined') {
+		const hostname = window.location.hostname;
+		if (!hostname.includes('debridmediamanager.com')) {
+			return '';
+		}
+	}
+
+	// Also check server-side environment for Vercel
+	if (process.env.VERCEL_URL || process.env.VERCEL_ENV) {
+		return '';
+	}
+
 	return baseUrl.replace('#num#', Math.floor(Math.random() * 10).toString());
 }
 
